@@ -6,5 +6,5 @@ Dependencies:
  - requests
  ___
 
-COMMODITIES_GOLD.py
+COMMODITIES_GOLD.py - TODOC
  - Essentially the main file of the project, all changes and testing will be tested on this .py, then applied to other files.
