@@ -96,13 +96,50 @@ def email(**kwargs):
                     config['BUGREPORTING']['lartoemail'], mes)
     server.quit()
 
-def text():
-    pass
 
+def text_log(**kwargs):
+    argslist = ('extype', 'statuscode', 'traceback',
+                'dir', 'values', 'programname',
+                'time', 'addinfo')
+    for arg in argslist:
+        if arg not in kwargs:
+            kwargs[arg] = 'None'
+        else:
+            pass
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    account_sid = config['BUGREPORTING']['twilioaccssid']
+    auth_token = config['BUGREPORTING']['twilioauthtoken']
+    client = Client(account_sid, auth_token)
 
-def local_log(scode, traceback, values, ):
-    with open(f_name_txt, 'w') as f:
-        f.write()
+    t = Template("""
+An exception occurred and was caught
+Check email report and/or local report for more information
+Program name..: $programname
+Time..: $time
+Exception Type..: $extype
+""")
+    mess = t.substitute(kwargs)
+    client.messages.create(
+        to=config['BUGREPORTING']['twiliorecievenum'],
+        from_=config['BUGREPORTING']['twiliosendnum'],
+        body=mess)
+
+def local_log(**kwargs):
+    argslist = ('fname', 'extype', 'statuscode',
+                'traceback', 'dir', 'values',
+                'programname', 'time', 'addinfo')
+    for arg in argslist:
+        if arg not in kwargs:
+            kwargs[arg] = 'None'
+        else:
+            pass
+    filename = kwargs['fname'] + '.txt'
+    try:
+        with open(filename, 'w') as f:
+            for arg in argslist:
+                f.write(str(arg) + '.....:' + str(kwargs[arg]))
+    except RuntimeError:
 
 
 def scrape():
@@ -123,11 +160,14 @@ def scrape():
             assert 200 <= code < 300
         except AssertionError:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            exc_mes = repr(
-                traceback.format_exception(exc_type, exc_value, exc_traceback))
+            exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
-                  values=[values, values_cache], programname='COMMODITIES_GOLD.py',
+                  values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py',
                   addinfo='Bad status code.')
+            local_log(fname='__main__errlog_run_0004', extype='AssertionError',
+                      statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
+                      addinfo='Bad status code')
+            text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='AssertionError')
             raise AssertionError
         else:
             print('Status Code %s' % code)
@@ -147,16 +187,24 @@ def scrape():
             print('Status Code %s' % code)
     except requests.exceptions.ConnectionError as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        exc_mes = repr(
-            traceback.format_exception(exc_type, exc_value, exc_traceback))
-        email(exc_mes)
+        exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        email(extype='requests.exceptions.ConnectionError', statuscode=code,
+             traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
+        local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
+                  statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
+                  addinfo='Connection error, see traceback')
+        text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.ConnectionError')
         time.sleep(900)
         scrape()
     except requests.exceptions.RequestException as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        exc_mes = repr(
-            traceback.format_exception(exc_type, exc_value, exc_traceback))
-        email(exc_mes)
+        exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        email(extype='requests.exceptions.RequestException', statuscode=code,
+             traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
+        local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
+                  statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
+                  addinfo='Catchall requests error, see traceback')
+        text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.RequestException')
 
 
 class OtherDataGet:
@@ -284,13 +332,13 @@ class CSVOps:
         values.append(OtherDataGet.streak_type)
         values.append(OtherDataGet.streak)
         print(values)
-        with open('COMMODITIES_GOLD_DATA_0003.csv', 'a', newline='') as file:
+        with open('COMMODITIES_GOLD_DATA_0004.csv', 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(values)
 
     @staticmethod
     def csv_init():
-        with open('COMMODITIES_GOLD_DATA_0003.csv', 'w') as file:
+        with open('COMMODITIES_GOLD_DATA_0004.csv', 'w') as file:
             writer = csv.writer(file)
             writer.writerow(csv_headers)
 
