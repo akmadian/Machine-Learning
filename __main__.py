@@ -24,37 +24,45 @@
     6 - Saturday
 --------------------
 """
-from lxml import html
-import requests
-import csv
+from lxml import html           # HTML Scraping
+import requests                 # Gets page for lxml
+import csv                      # CSV parser
 import time
-import sys
-import random
-import os
-import sys, traceback
-import smtplib
-import configparser
-from string import Template
-from twilio.rest import Client
+import sys, traceback           # Exception handling
+import smtplib                  # Exception handling
+import configparser             # Config file parser
+from string import Template     # Exception handling
+from twilio.rest import Client  # Exception handling
 
 # TODO: Document all classes and functions
-# TODO: Make error reporting work
 
-stock_xpath = '//*[@id="cross_rate_1"]/tbody/tr[1]/td[4]'
+stock_xpath = '//*[@id="cross_rate_1"]/tbody/tr[1]/td[4]'   # Up here for easy reference
 stock_site = 'https://www.investing.com/commodities/real-time-futures'
-request_header = {'User-Agent': 'Mozilla/5.0'}
-# CSV HEADERS - [INT, INT, INT, INT, INT, INT, INT, INT]
 csv_headers = ['entryno.','value','UOD',
                'time','DOW','timeperiod',
                'OUDstreaktype','OUDstreakno.']
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 1
-f_name = 'COMMODITIES_GOLD_DATA_0004.csv'
-f_name_txt = 'COMMODITIES_GOLD_DATA_0004.txt'
 
 
 def email(**kwargs):
+    """ Emails an exception report
+
+    Uses information passed in with kwargs to fill out a template and send
+    an email containing the information.
+
+    :param kwargs:
+    extype      (str): The type of exception or error
+    statuscode  (str): The HTML response code
+    traceback   (str): The traceback message
+    dir         (str): The path to the .py file the exception occurred in
+    values      (str): The values and values_cache list, or any other relevant values
+    programname (str): The name of the script, can provide additional info
+    time        (str): The time at which the exception occurred
+    addinfo     (str): Any additional information about the exception/ error
+    :return:
+    """
     argslist = ('extype', 'statuscode', 'traceback',
                 'dir', 'values', 'programname',
                 'time', 'addinfo')
@@ -66,7 +74,8 @@ def email(**kwargs):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
     server.starttls()
-    server.login(config['BUGREPORTING']['larloginemail'], config['BUGREPORTING']['larloginpassword'])
+    server.login(config['BUGREPORTING']['larloginemail'],
+                 config['BUGREPORTING']['larloginpassword'])
     t = Template("""Program name.....: $programname
         Time of exception.....: $time
         Exception Type.....: $extype
@@ -98,6 +107,14 @@ def email(**kwargs):
 
 
 def text_log(**kwargs):
+    """Uses SMS to text an error report
+
+    Uses information passed in via kwargs to generate an excpetion/ error report
+
+    :param kwargs:
+    See kwargs: in email() for kwargs docs
+    :return:
+    """
     argslist = ('extype', 'statuscode', 'traceback',
                 'dir', 'values', 'programname',
                 'time', 'addinfo')
@@ -125,7 +142,18 @@ Exception Type..: $extype
         from_=config['BUGREPORTING']['twiliosendnum'],
         body=mess)
 
+
 def local_log(**kwargs):
+    """ Logs an exception/ error report locally
+
+    Longer description is essentially the same as email() and text_log()
+    but it's a local text file.
+
+    :param kwargs:
+    fname       (str): What the log file should be named, do not include file extension
+    See kwargs: in email() for the rest of them
+    :return:
+    """
     argslist = ('fname', 'extype', 'statuscode',
                 'traceback', 'dir', 'values',
                 'programname', 'time', 'addinfo')
@@ -141,6 +169,11 @@ def local_log(**kwargs):
 
 
 def scrape():
+    """ Scrapes a stock value
+
+    Uses requests and lxml to scrape a stock value
+    :return:
+    """
     del values_cache[:]
     for index in values:
         values_cache.append(index)
@@ -152,7 +185,7 @@ def scrape():
         adapter = requests.adapters.HTTPAdapter()
         session.mount('https://', adapter)
         session.mount('http://', adapter)
-        page = session.get(stock_site, headers=request_header)
+        page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         code = str(page.status_code)
         try:
             assert 200 <= code < 300
@@ -206,12 +239,18 @@ def scrape():
 
 
 class OtherDataGet:
+    """ Gets and assembles other types of data for the log file"""
     streak = 0
     streak_type = 3
     uod_state = 3
 
     @staticmethod
     def uod():
+        """ Determines whether the last value was higher, lower, or the same
+            as the one before it.
+
+        :return int:    See main file docstring for int key
+        """
         if int(values[1]) > int(values_cache[1]):  # If value went up
             if OtherDataGet.streak_type != 0:  # If it was previously down or same
                 OtherDataGet.uod_state = 0  # Set state to up
@@ -239,6 +278,12 @@ class OtherDataGet:
 
     @staticmethod
     def time():
+        """ Gets the time in 24hr format
+
+        Combines hour, minute, second into a single integer
+                hr/min/sec
+        :return int:
+        """
         # timelist format = [year, month, day, hour, minute, second, weekday, yearday]
         timelist = list(time.localtime())
         hour = time.strftime(format('%H'))
@@ -262,6 +307,10 @@ class OtherDataGet:
 
     @staticmethod
     def day_of_week():
+        """ Gets the day of the week
+
+        :return int:    See docstring at top of file for int key
+        """
         list_ = list(time.localtime())
         day = list_[6] + 1
         L = ['0', str(day)]
@@ -269,14 +318,10 @@ class OtherDataGet:
 
     @staticmethod
     def time_period():
-        '''
-        Day of week
-        Time of day 12hr
-        Time of day 6hr
-        Time of day 3hr
-        time of day 1hr
-        :return:
-        '''
+        """ Gets the time period
+
+        :return int:    year/mo/dow/12hr/6hr/3hr/1hr
+        """
         tmp_list = []
         time_list_ = list(time.localtime())
         time_ = str(OtherDataGet.time())
@@ -322,8 +367,14 @@ class OtherDataGet:
 
 
 class CSVOps:
+    """ Operations involving CSV files"""
     @staticmethod
     def csv_write():
+        """ Writes to a csv file
+
+        Gets additional information and writes it to a CSV file
+        :return:
+        """
         values.append(OtherDataGet.uod())
         values.append(OtherDataGet.time())
         values.append(int(OtherDataGet.time_period()))
@@ -336,12 +387,16 @@ class CSVOps:
 
     @staticmethod
     def csv_init():
+        """ Initializes a csv file with headers
+
+        :return:
+        """
         with open('COMMODITIES_GOLD_DATA_0004.csv', 'w') as file:
             writer = csv.writer(file)
             writer.writerow(csv_headers)
 
 
-def main():
+def main(): # TODO: Document
     print(OtherDataGet.time())
     #conditional = (150000 <= OtherDataGet.time() > 141500)
     #if conditional:
