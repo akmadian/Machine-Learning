@@ -135,11 +135,9 @@ def local_log(**kwargs):
         else:
             pass
     filename = kwargs['fname'] + '.txt'
-    try:
-        with open(filename, 'w') as f:
-            for arg in argslist:
-                f.write(str(arg) + '.....:' + str(kwargs[arg]))
-    except RuntimeError:
+    with open(filename, 'w') as f:
+        for arg in argslist:
+            f.write(str(arg) + '.....:' + str(kwargs[arg]))
 
 
 def scrape():
