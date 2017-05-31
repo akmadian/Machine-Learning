@@ -4,6 +4,7 @@ Python Version - 3.6
 Dependencies:
  - lxml
  - requests
+ - twilio
  ___
 
 COMMODITIES_GOLD.py - TODOC
