@@ -1,28 +1,11 @@
 """
---------------------
-    Initially created
-    May 25, 2017 10:23 AM
+    File Name: __main__.py
+    Author: Ari Madian
+    Created: May 25, 2017 10:23 AM
+    Python Version: 3.6
 
-    scrape.py
-
-    Part of my machine learning project
-
-
-    INT VALUES FOR Up Or Down (UOD)
-    0 - Up
-    1 - Down
-    2 - Same
-
-
-    INT VALUES FOR DAYS OF THE WEEK
-    0 - Sunday
-    1 - Monday
-    2 - Tuesday
-    3 - Wednesday
-    4 - Thursday
-    5 - Friday
-    6 - Saturday
---------------------
+    __main__.py - Part of Machine-Learning Repo
+    Repo: github.com/akmadian/Machine-Learning
 """
 from lxml import html           # HTML Scraping
 import requests                 # Gets page for lxml
@@ -33,17 +16,61 @@ import smtplib                  # Exception handling
 import configparser             # Config file parser
 from string import Template     # Exception handling
 from twilio.rest import Client  # Exception handling
+import os
+import socket
 
-# TODO: Document all classes and functions
+  # TODO: Better function grouping
+  # TODO: Document new funtions
+  # TODO: Improve efficiency
 
-stock_xpath = '//*[@id="cross_rate_1"]/tbody/tr[1]/td[4]'   # Up here for easy reference
-stock_site = 'https://www.investing.com/commodities/real-time-futures'
+
 csv_headers = ['entryno.','value','UOD',
                'time','DOW','timeperiod',
                'OUDstreaktype','OUDstreakno.']
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
+values_1 = [0, 0, 0, 0, 0, 0, 0, 0]
+values_2 = [0, 0, 0, 0, 0, 0, 0, 0]
+values_3 = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 1
+
+GREEN = '\033[0;32m'
+RESET = '\033[0;0m'
+RED = '\033[0;31m'
+
+def is_connected():
+    try:
+        host = socket.gethostbyname('www.google.com')
+        s = socket.create_connection((host, 80), 2)
+        return True
+    except:
+        pass
+    return False
+
+def output(run_status, statuscode):
+    print('__main__.py' + '\n')
+    # Status
+    print('\r' + 'Status        - [', end='')
+    if run_status == 1:  # Good
+        print('\r' + 'Status        - [', end='')
+        sys.stdout.write(GREEN)
+        print('OK', end='')
+        sys.stdout.write(RESET)
+        sys.stdout.write(']' + '\n')
+    elif run_status == 2:  # Stopped
+        sys.stdout.write('\033[F')
+        sys.stdout.flush()
+        print('\r' + 'Status        - [', end='')
+        sys.stdout.write(RED)
+        print('STOPPED', end='')
+        sys.stdout.write(RESET)
+        print(']' + '\n')
+    print('Time          - [' + str(OtherDataGet.time()) + ']') # Time
+    print('Response Code - [' + str(statuscode) + ']') # Response Code
+    print('Num Of Values - [' + str(entryno_counter) + ']') # Num of values written
+    print('PID           - [' + str(os.getpid()) + ']') # Process ID
+    print('Internet Conn - [' + str(is_connected()) + ']') # Connected To Internet
+    print('\n')
 
 
 def email(**kwargs):
@@ -168,18 +195,38 @@ def local_log(**kwargs):
             f.write(str(arg) + '.....:' + str(kwargs[arg]))
 
 
+def shift():
+    del values_3[:]
+    for i in values_2:
+        values_3.append(i)
+    del values_2[:]
+    for i in values_1:
+        values_2.append(i)
+    del values_1[:]
+    for i in values_cache:
+        values_1.append(i)
+    del values_cache[:]
+    for index in values:
+        values_cache.append(index)
+    del values[:]
+
+
 def scrape():
     """ Scrapes a stock value
 
     Uses requests and lxml to scrape a stock value
     :return:
     """
-    del values_cache[:]
-    for index in values:
-        values_cache.append(index)
-    del values[:]
+    stock_xpath = '//*[@id="cross_rate_1"]/tbody/tr[1]/td[4]'
+    stock_site = 'https://www.investing.com/commodities/real-time-futures'
+    shift()
     values.append(entryno_counter)
     value_ = []
+    if not is_connected():
+        time.sleep(300)
+        scrape()
+    else:
+        pass
     try:
         session = requests.Session()
         adapter = requests.adapters.HTTPAdapter()
@@ -188,8 +235,9 @@ def scrape():
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         code = str(page.status_code)
         try:
-            assert 200 <= code < 300
+            assert 200 <= int(code) < 300
         except AssertionError:
+            output(2, code)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
@@ -199,9 +247,16 @@ def scrape():
                       statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
                       addinfo='Bad status code')
             text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='AssertionError')
+            print(exc_mes)
             raise AssertionError
         else:
-            print('Status Code %s' % code)
+            os.system('cls')
+            output(1, code)
+            print(values)
+            print(values_cache)
+            print(values_1)
+            print(values_2)
+            print(values_3)
             tree = html.fromstring(page.content)
             n_converted = tree.xpath(stock_xpath)
             s_converted = n_converted[0].text
@@ -212,11 +267,11 @@ def scrape():
                     pass
                 nvalue = ''.join(value_)
             values.append(nvalue)
-            print(values)
-            CSVOps.csv_write()
+            CSVOps.csv_write(code)
         finally:
-            print('Status Code %s' % code)
+            pass
     except requests.exceptions.ConnectionError as e:
+        output(2, code)
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         email(extype='requests.exceptions.ConnectionError', statuscode=code,
@@ -227,7 +282,9 @@ def scrape():
         text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.ConnectionError')
         time.sleep(900)
         scrape()
+        print(exc_mes)
     except requests.exceptions.RequestException as e:
+        output(2, code)
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         email(extype='requests.exceptions.RequestException', statuscode=code,
@@ -236,7 +293,7 @@ def scrape():
                   statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
                   addinfo='Catchall requests error, see traceback')
         text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.RequestException')
-
+        print(exc_mes)
 
 class OtherDataGet:
     """ Gets and assembles other types of data for the log file"""
@@ -259,7 +316,7 @@ class OtherDataGet:
             if int(values_cache[5]) == 0:  # If last state was up
                 OtherDataGet.streak += 1  # Add one to streak counter
             return 0
-        elif int(values[1]) < int(values_cache[1]):
+        elif int(values[1]) < int(values_cache[1]):  # If value went down
             if OtherDataGet.streak_type != 1:
                 OtherDataGet.uod_state = 1
                 OtherDataGet.streak = 0
@@ -267,7 +324,7 @@ class OtherDataGet:
             if int(values_cache[5]) == 1:
                 OtherDataGet.streak += 1
             return 1
-        elif int(values[1]) == int(values_cache[1]):
+        elif int(values[1]) == int(values_cache[1]):  # If value is the same
             if OtherDataGet.streak_type != 2:
                 OtherDataGet.uod_state = 2
                 OtherDataGet.streak = 0
@@ -325,8 +382,7 @@ class OtherDataGet:
         tmp_list = []
         time_list_ = list(time.localtime())
         time_ = str(OtherDataGet.time())
-        time_list = [time_[i:i+2] for i in range(0, len(time_), 2)]
-        print(time_list)
+        #time_list = [time_[i:i+2] for i in range(0, len(time_), 2)]
         year = time_list_[0]
         month = time_list_[1]
         hour = int(time.strftime(format('%H')))
@@ -369,7 +425,7 @@ class OtherDataGet:
 class CSVOps:
     """ Operations involving CSV files"""
     @staticmethod
-    def csv_write():
+    def csv_write(code):
         """ Writes to a csv file
 
         Gets additional information and writes it to a CSV file
@@ -380,37 +436,37 @@ class CSVOps:
         values.append(int(OtherDataGet.time_period()))
         values.append(OtherDataGet.streak_type)
         values.append(OtherDataGet.streak)
-        print(values)
-        with open('COMMODITIES_GOLD_DATA_0004.csv', 'a', newline='') as file:
+        os.system('cls')
+        output(1, code)
+        print(str(values) + '    |    Newest' )
+        print(str(values_cache) + '    |')
+        print(str(values_1) + '    |')
+        print(str(values_2) + '    |')
+        print(str(values_3) + '    v    Oldest')
+        with open('COMMODITIES_GOLD_DATA_0005.csv', 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(values)
-
+        print(' - Written')
     @staticmethod
     def csv_init():
         """ Initializes a csv file with headers
 
         :return:
         """
-        with open('COMMODITIES_GOLD_DATA_0004.csv', 'w') as file:
+        with open('COMMODITIES_GOLD_DATA_0005.csv', 'w') as file:
             writer = csv.writer(file)
             writer.writerow(csv_headers)
 
 
-def main(): # TODO: Document
-    print(OtherDataGet.time())
-    #conditional = (150000 <= OtherDataGet.time() > 141500)
-    #if conditional:
-    scrape()
-    global entryno_counter
-    entryno_counter += 1
-    #elif not conditional:
-    #   print('Not in time range')
-    #    pass
-
-
 if __name__ == '__main__':
+    output(1, None)
     config = configparser.ConfigParser()
     config.read('config.ini')
+    print(' - Config File Parsed')
+    time.sleep(1)
     CSVOps.csv_init()
+    print(' - CSV File Initiated')
+    time.sleep(1)
     while True:
-        main()
+        scrape()
+        entryno_counter += 1
