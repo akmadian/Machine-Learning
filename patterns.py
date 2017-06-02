@@ -11,8 +11,13 @@
 import csv
 import time
 from datetime import datetime
-import math
+import os
+import sys
+import statistics
 
+def average(streaks):
+    streaks_without_zeros = [streak for streak in streaks if streak != 0]
+    return statistics.mean(streaks_without_zeros)
 
 def csv_read():
     num_0s = 0
@@ -27,15 +32,9 @@ def csv_read():
     streak_0 = 0
     streak_1 = 0
     streak_2 = 0
-    streak_0_sum = 0
-    streak_1_sum = 0
-    streak_2_sum = 0
-    streak_0_num0s = 0
-    streak_1_num0s = 0
-    streak_2_num0s = 0
     row_count = 0
     row = []
-    with open('COMMODITIES_GOLD_DATA_0004.csv', 'r') as f:
+    with open('COMMODITIES_GOLD_DATA_0006.csv', 'r') as f:
         reader = csv.reader(f)
         print('CSV Opened...')
         print('Iterating...')
@@ -100,31 +99,13 @@ def csv_read():
                 for thing in next_row:
                     row.append(thing)
 
-        for number in streaks_0:
-            if number == 0:
-                streak_0_num0s += 1
-            elif number != 0:
-                streak_0_sum += number
-        streak_0_average = (streak_0_sum / (len(streaks_0) - streak_0_num0s))
-
-        for number in streaks_1:
-            if number == 0:
-                streak_1_num0s += 1
-            elif number != 0:
-                streak_1_sum += number
-        streak_1_average = (streak_1_sum / (len(streaks_1) - streak_1_num0s))
-
-        for number in streaks_2:
-            if number == 0:
-                streak_2_num0s += 1
-            elif number != 0:
-                streak_2_sum += number
-        streak_2_average = (streak_2_sum / (len(streaks_2) - streak_2_num0s))
-
         for_every_1_0 = num_0s / num_1s
         for_every_1_1 = num_1s / num_1s
         for_every_1_2 = num_2s / num_1s
-
+        if os.name == 'nt':
+            os.system('cls')
+        else:
+            pass
         print('Num 0s: %s' % num_0s)
         print('Num 1s: %s' % num_1s)
         print('Num 2s: %s' % num_2s)
@@ -134,15 +115,21 @@ def csv_read():
         print('Num 0 Streaks: %s' % len(streaks_0))
         print('Num 1 Streaks: %s' % len(streaks_1))
         print('Num 2 Streaks: %s' % len(streaks_2))
-        print('Streak 0 Avg: %s' % round(streak_0_average, 3))
-        print('Streak 1 Avg: %s' % round(streak_1_average, 3))
-        print('Streak 2 Avg: %s' % round(streak_2_average, 3))
+        print('Streak 0 Avg: %s' % round(average(streaks_0), 3))
+        print('Streak 1 Avg: %s' % round(average(streaks_1), 3))
+        print('Streak 2 Avg: %s' % round(average(streaks_2), 3))
         print('Factor 1 for 1: %s' % round(for_every_1_1, 3))
         print('Factor 0 for 1: %s' % round(for_every_1_0, 3))
         print('Factor 2 for 1: %s' % round(for_every_1_2, 3))
         print('')
-        print('Loop took: ' + str(datetime.now() - starttime) + ' Seconds')
+        time_delta = str(datetime.now() - starttime)[5:]
+        print('Loop took: %s Seconds' % round(float(time_delta), 4))
         print('Done')
 
-starttime = datetime.now()
-csv_read()
+while True:
+    starttime = datetime.now()
+    csv_read()
+    for i in range(0, 15):
+        sys.stdout.write('\r' + str(15 - i) + ' Seconds Left Until Next Loop')
+        time.sleep(1)
+    print('\n\n')
