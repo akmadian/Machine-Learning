@@ -19,11 +19,6 @@ from twilio.rest import Client  # Exception handling
 import os
 import socket
 
-  # TODO: Better function grouping
-  # TODO: Document new funtions
-  # TODO: Improve efficiency
-
-
 csv_headers = ['entryno.','value','UOD',
                'time','DOW','timeperiod',
                'OUDstreaktype','OUDstreakno.']
@@ -34,13 +29,18 @@ values_2 = [0, 0, 0, 0, 0, 0, 0, 0]
 values_3 = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 1
 
-GREEN = '\033[0;32m'
-RESET = '\033[0;0m'
+GREEN = "\033[0;32m"
+RESET = "\033[0;0m"
 RED = '\033[0;31m'
 
+REMOTE_SERVER = "www.google.com"
 def is_connected():
     try:
-        host = socket.gethostbyname('www.google.com')
+        # see if we can resolve the host name -- tells us if there is
+        # a DNS listening
+        host = socket.gethostbyname(REMOTE_SERVER)
+        # connect to the host -- tells us if the host is actually
+        # reachable
         s = socket.create_connection((host, 80), 2)
         return True
     except:
@@ -275,7 +275,7 @@ def scrape():
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         email(extype='requests.exceptions.ConnectionError', statuscode=code,
-             traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
+              traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
                   statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
                   addinfo='Connection error, see traceback')
@@ -288,7 +288,7 @@ def scrape():
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         email(extype='requests.exceptions.RequestException', statuscode=code,
-             traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
+              traceback=exc_mes, values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
                   statuscode=code, traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
                   addinfo='Catchall requests error, see traceback')
@@ -308,30 +308,42 @@ class OtherDataGet:
 
         :return int:    See main file docstring for int key
         """
-        if int(values[1]) > int(values_cache[1]):  # If value went up
-            if OtherDataGet.streak_type != 0:  # If it was previously down or same
-                OtherDataGet.uod_state = 0  # Set state to up
-                OtherDataGet.streak = 0  # Reset streak
-                OtherDataGet.streak_type = 0  # Set streak type to up
-            if int(values_cache[5]) == 0:  # If last state was up
-                OtherDataGet.streak += 1  # Add one to streak counter
-            return 0
-        elif int(values[1]) < int(values_cache[1]):  # If value went down
-            if OtherDataGet.streak_type != 1:
-                OtherDataGet.uod_state = 1
-                OtherDataGet.streak = 0
-                OtherDataGet.streak_type = 1
-            if int(values_cache[5]) == 1:
-                OtherDataGet.streak += 1
-            return 1
-        elif int(values[1]) == int(values_cache[1]):  # If value is the same
-            if OtherDataGet.streak_type != 2:
-                OtherDataGet.uod_state = 2
-                OtherDataGet.streak = 0
-                OtherDataGet.streak_type = 2
-            if int(values_cache[5]) == 2:
-                OtherDataGet.streak += 1
-            return 2
+        try:
+            if int(values[1]) > int(values_cache[1]):  # If value went up
+                if OtherDataGet.streak_type != 0:  # If it was previously down or same
+                    OtherDataGet.uod_state = 0  # Set state to up
+                    OtherDataGet.streak = 0  # Reset streak
+                    OtherDataGet.streak_type = 0  # Set streak type to up
+                if int(values_cache[5]) == 0:  # If last state was up
+                    OtherDataGet.streak += 1  # Add one to streak counter
+                return 0
+            elif int(values[1]) < int(values_cache[1]):  # If value went down
+                if OtherDataGet.streak_type != 1:
+                    OtherDataGet.uod_state = 1
+                    OtherDataGet.streak = 0
+                    OtherDataGet.streak_type = 1
+                if int(values_cache[5]) == 1:
+                    OtherDataGet.streak += 1
+                return 1
+            elif int(values[1]) == int(values_cache[1]):  # If value is the same
+                if OtherDataGet.streak_type != 2:
+                    OtherDataGet.uod_state = 2
+                    OtherDataGet.streak = 0
+                    OtherDataGet.streak_type = 2
+                if int(values_cache[5]) == 2:
+                    OtherDataGet.streak += 1
+                return 2
+        except IndexError:
+            output(2, None)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            email(extype='requests.exceptions.RequestException', traceback=exc_mes,
+                  values=[values, values_cache], programname='__main__.py/ COMMODITIES_GOLD.py')
+            local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
+                      traceback=exc_mes, programname='__main__.py/ COMMODITIES_GOLD.py',
+                      addinfo='Catchall requests error, see traceback')
+            text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.RequestException')
+            print(exc_mes)
 
     @staticmethod
     def time():
