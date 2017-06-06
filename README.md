@@ -18,3 +18,6 @@ Machine-Learning+Guess+Algorithm.ipynb
  
 Guess Algorithm Versions
  - Full script for each version of the guess algorithm, just a modifiedpatterns.py.
+ 
+graphing.py
+ - Graphs accuracy by script run, meant to measure accuracy over time. (Seeing if accuracy increases with the number of avaliable lines).
