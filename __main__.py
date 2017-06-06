@@ -7,15 +7,15 @@
     __main__.py - Part of Machine-Learning Repo
     Repo: github.com/akmadian/Machine-Learning
 """
-from lxml import html           # HTML Scraping
-import requests                 # Gets page for lxml
-import csv                      # CSV parser
+from lxml import html
+import requests
+import csv
 import time
-import sys, traceback           # Exception handling
-import smtplib                  # Exception handling
-import configparser             # Config file parser
-from string import Template     # Exception handling
-from twilio.rest import Client  # Exception handling
+import sys, traceback
+import smtplib
+import configparser
+from string import Template
+from twilio.rest import Client
 import os
 import socket
 
@@ -26,54 +26,54 @@ values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
 values_1 = [0, 0, 0, 0, 0, 0, 0, 0]
 values_2 = [0, 0, 0, 0, 0, 0, 0, 0]
-values_3 = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 1
 
-GREEN = "\033[0;32m"
-RESET = "\033[0;0m"
+GREEN = '\033[0;32m'
+RESET = '\033[0;0m'
 RED = '\033[0;31m'
 
-REMOTE_SERVER = "www.google.com"
+
 def is_connected():
+    """Checks to see if an internet connection is active"""
     try:
-        # see if we can resolve the host name -- tells us if there is
-        # a DNS listening
-        host = socket.gethostbyname(REMOTE_SERVER)
-        # connect to the host -- tells us if the host is actually
-        # reachable
+        host = socket.gethostbyname('www.google.com')
         s = socket.create_connection((host, 80), 2)
         return True
     except:
         pass
     return False
 
+
 def output(run_status, statuscode):
-    print('__main__.py' + '\n')
+    """ Outputs console-like information about the program runtime"""
+    sys.stdout.write('__main__.py' + '\n')
     # Status
-    print('\r' + 'Status        - [', end='')
+    sys.stdout.write('\r' + 'Status        - [', end='')
     if run_status == 1:  # Good
-        print('\r' + 'Status        - [', end='')
+        sys.stdout.write('\r' + 'Status        - [', end='')
         sys.stdout.write(GREEN)
-        print('OK', end='')
+        sys.stdout.write('OK', end='')
         sys.stdout.write(RESET)
         sys.stdout.write(']' + '\n')
     elif run_status == 2:  # Stopped
         sys.stdout.write('\033[F')
         sys.stdout.flush()
-        print('\r' + 'Status        - [', end='')
+        sys.stdout.write('\r' + 'Status        - [', end='')
         sys.stdout.write(RED)
-        print('STOPPED', end='')
+        sys.stdout.write('STOPPED', end='')
         sys.stdout.write(RESET)
-        print(']' + '\n')
-    print('Time          - [' + str(OtherDataGet.time()) + ']') # Time
-    print('Response Code - [' + str(statuscode) + ']') # Response Code
-    print('Num Of Values - [' + str(entryno_counter) + ']') # Num of values written
-    print('PID           - [' + str(os.getpid()) + ']') # Process ID
-    print('Internet Conn - [' + str(is_connected()) + ']') # Connected To Internet
-    print('\n')
+        sys.stdout.write(']' + '\n')
+    sys.stdout.write('Time          - [' + str(OtherDataGet.time()) + ']') # Time
+    sys.stdout.write('Response Code - [' + str(statuscode) + ']') # Response Code
+    sys.stdout.write('Num Of Values - [' + str(entryno_counter) + ']') # Num of values written
+    sys.stdout.write('PID           - [' + str(os.getpid()) + ']') # Process ID
+    sys.stdout.write('Internet Conn - [' + str(is_connected()) + ']') # Connected To Internet
+    sys.stdout.write('\n')
 
 
-def email(**kwargs):
+def email(exctype= None, statuscode= None, traceback= None,
+          dir= None, values= None, programname= None, time=None,
+          addinfo= None):
     """ Emails an exception report
 
     Uses information passed in with kwargs to fill out a template and send
@@ -90,14 +90,6 @@ def email(**kwargs):
     addinfo     (str): Any additional information about the exception/ error
     :return:
     """
-    argslist = ('extype', 'statuscode', 'traceback',
-                'dir', 'values', 'programname',
-                'time', 'addinfo')
-    for arg in argslist:
-        if arg not in kwargs:
-            kwargs[arg] = 'None'
-        else:
-            pass
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
     server.starttls()
@@ -133,7 +125,9 @@ def email(**kwargs):
     server.quit()
 
 
-def text_log(**kwargs):
+def text_log(exctype= None, statuscode= None, traceback= None,
+             dir= None, values= None, programname= None, time=None,
+             addinfo= None):
     """Uses SMS to text an error report
 
     Uses information passed in via kwargs to generate an excpetion/ error report
@@ -142,14 +136,6 @@ def text_log(**kwargs):
     See kwargs: in email() for kwargs docs
     :return:
     """
-    argslist = ('extype', 'statuscode', 'traceback',
-                'dir', 'values', 'programname',
-                'time', 'addinfo')
-    for arg in argslist:
-        if arg not in kwargs:
-            kwargs[arg] = 'None'
-        else:
-            pass
     config = configparser.ConfigParser()
     config.read('config.ini')
     account_sid = config['BUGREPORTING']['twilioaccssid']
@@ -170,7 +156,9 @@ Exception Type..: $extype
         body=mess)
 
 
-def local_log(**kwargs):
+def local_log(exctype= None, statuscode= None, traceback= None,
+              dir= None, values= None, programname= None, time=None,
+              addinfo= None):
     """ Logs an exception/ error report locally
 
     Longer description is essentially the same as email() and text_log()
@@ -181,14 +169,6 @@ def local_log(**kwargs):
     See kwargs: in email() for the rest of them
     :return:
     """
-    argslist = ('fname', 'extype', 'statuscode',
-                'traceback', 'dir', 'values',
-                'programname', 'time', 'addinfo')
-    for arg in argslist:
-        if arg not in kwargs:
-            kwargs[arg] = 'None'
-        else:
-            pass
     filename = kwargs['fname'] + '.txt'
     with open(filename, 'w') as f:
         for arg in argslist:
@@ -196,9 +176,6 @@ def local_log(**kwargs):
 
 
 def shift():
-    del values_3[:]
-    for i in values_2:
-        values_3.append(i)
     del values_2[:]
     for i in values_1:
         values_2.append(i)
@@ -294,6 +271,7 @@ def scrape():
                   addinfo='Catchall requests error, see traceback')
         text_log(time=OtherDataGet.time(), programname='__main__.py/ COMMODITIES_GOLD.py', extype='requests.exceptions.RequestException')
         print(exc_mes)
+
 
 class OtherDataGet:
     """ Gets and assembles other types of data for the log file"""
@@ -450,11 +428,9 @@ class CSVOps:
         values.append(OtherDataGet.streak)
         os.system('cls')
         output(1, code)
-        print(str(values) + '    |    Newest' )
-        print(str(values_cache) + '    |')
-        print(str(values_1) + '    |')
-        print(str(values_2) + '    |')
-        print(str(values_3) + '    v    Oldest')
+        print(values_1)
+        print(values_cache)
+        print(values)
         with open('COMMODITIES_GOLD_DATA_0005.csv', 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(values)
