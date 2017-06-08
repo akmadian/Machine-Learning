@@ -5,6 +5,9 @@ Non Standard Module Dependencies:
  - lxml                     
  - requests
  - twilio
+ - bokeh
+ 
+ - Node.JS
  ___
 
 __main__.py - TODOC
