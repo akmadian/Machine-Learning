@@ -24,3 +24,7 @@ Guess Algorithm Versions
  
 graphing.py
  - Graphs accuracy by script run, meant to measure accuracy over time. (Seeing if accuracy increases with the number of avaliable lines).
+ 
+ ___
+Accuracy Increase Log
+ - Tuesday, June 7, 2017 - ~ 70%
