@@ -1,23 +1,64 @@
 """
-    File Name: patterns.py
+    Parent File Name: patterns.py
+    File Name: guess_v1.1.py
     Author: Ari Madian
     Created: May 31, 2017  9:16AM
     Python Version: 3.6
+    Guess Algorithm Version: v1.1
 
     patterns.py - part of Machine-Learning Repo
     Repo: github.com/akmadian/Machine-Learning
 """
 
 import csv
-import time
 from datetime import datetime
 import os
-import sys
 import statistics
+from itertools import repeat
+import random as random
+
+
+outlist = []
+run_count = 0
+
 
 def average(streaks):
     streaks_without_zeros = [streak for streak in streaks if streak != 0]
     return statistics.mean(streaks_without_zeros)
+
+
+def probability_list(l1, l2, l3):
+    list_ = []
+    list_.extend(repeat(0, int(round(l1))))
+    list_.extend(repeat(1, int(round(l2))))
+    list_.extend(repeat(2, int(round(l3))))
+    return list_
+
+
+def outfile_init():
+    with open('patterns_outfile_0001.txt', 'w') as f:
+        f.close()
+    print('Outfile Initialized...')
+
+
+def guess_v1_1(p_list):
+    correct = 0
+    incorrect = 0
+    line_count = 0
+    with open('COMMODITIES_GOLD_DATA_0007.csv', 'r') as f:
+        reader = csv.reader(f)
+        for line in reader:
+            line_count += 1
+            if line_count >= 4:
+                guess_ = random.choice(p_list)
+                if int(line[5]) == guess_:
+                    correct += 1
+                else:
+                    incorrect += 1
+            else:
+                pass
+        return [correct, incorrect]
+
 
 def csv_read():
     num_0s = 0
@@ -34,7 +75,8 @@ def csv_read():
     streak_2 = 0
     row_count = 0
     row = []
-    with open('COMMODITIES_GOLD_DATA_0006.csv', 'r') as f:
+    starttime = datetime.now()
+    with open('COMMODITIES_GOLD_DATA_0007.csv', 'r') as f:
         reader = csv.reader(f)
         print('CSV Opened...')
         print('Iterating...')
@@ -102,10 +144,10 @@ def csv_read():
         for_every_1_0 = num_0s / num_1s
         for_every_1_1 = num_1s / num_1s
         for_every_1_2 = num_2s / num_1s
-        if os.name == 'nt':
-            os.system('cls')
-        else:
-            pass
+        prob_list = probability_list(for_every_1_1, for_every_1_0, for_every_1_2)
+        guess_list = guess_v1_1(prob_list)
+        percent_correct = round(((guess_list[0] / (guess_list[0] + guess_list[1])) * 100), 2)
+
         print('Num 0s: %s' % num_0s)
         print('Num 1s: %s' % num_1s)
         print('Num 2s: %s' % num_2s)
@@ -121,15 +163,18 @@ def csv_read():
         print('Factor 1 for 1: %s' % round(for_every_1_1, 3))
         print('Factor 0 for 1: %s' % round(for_every_1_0, 3))
         print('Factor 2 for 1: %s' % round(for_every_1_2, 3))
+        print('Probability list: %s' % prob_list)
+        print('Num correct, incorrect guesses: %s' % guess_list)
+        print('Percent Correct: %s' % percent_correct + '%')
+        print('Total Lines: %s' % str(guess_list[0] + guess_list[1]))
         print('')
         time_delta = str(datetime.now() - starttime)[5:]
         print('Loop took: %s Seconds' % round(float(time_delta), 4))
         print('Done')
 
-while True:
-    starttime = datetime.now()
+    return [percent_correct, prob_list, guess_list, row_count]
+
+
+def main():
+    outfile_init()
     csv_read()
-    for i in range(0, 15):
-        sys.stdout.write('\r' + str(15 - i) + ' Seconds Left Until Next Loop')
-        time.sleep(1)
-    print('\n\n')
