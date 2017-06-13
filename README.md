@@ -6,6 +6,7 @@ Non Standard Module Dependencies:
  - requests
  - twilio
  - bokeh
+ - arrow
  
  - Node.JS
  ___
