@@ -22,17 +22,23 @@ from twilio.rest import Client
 import os
 import socket
 
+args = sys.argv[2:]
+
 csv_headers = ['entryno.', 'value',
                'time', 'DOW', 'timeperiod',
                'OUDstreaktype', 'OUDstreakno.']
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
-entryno_counter = 1
-write_file_name = 'COMMODITIES_GOLD_DATA_test.csv'
+entryno_counter = 0
+write_file_name = 'RDF_0001.csv'
 
 GREEN = '\033[0;32m'
 RESET = '\033[0;0m'
 RED = '\033[0;31m'
+
+streak = 0
+streak_type = 3
+uod_state = 3
 
 
 def output(statuscode):
@@ -70,18 +76,23 @@ def email(**kwargs):
     addinfo     (str): Any additional information about the exception/ error
     :return:
     """
-    args = ('exctype', 'statuscode', 'traceback',
+    if '-v' in args: print('Email Log Started')
+    args_ = ('exctype', 'statuscode', 'traceback',
             'dir', 'values', 'programname',
             'time', 'addinfo')
-    for i in args:
+    for i in args_:
         if i not in kwargs:
+            if '-v' in args: print(str(i) + ' - Not in kwargs')
             kwargs[i] = None
 
     server = smtplib.SMTP('smtp.gmail.com', 587)
+    if '-v' in args: print('Server Connection Established')
     server.ehlo()
     server.starttls()
+    if '-v' in args: print('Ehlo and Starttls Successful')
     server.login(config['BUGREPORTING']['larloginemail'],
                  config['BUGREPORTING']['larloginpassword'])
+    if '-v' in args: print('Login Successful')
     t = Template("""Program name.....: $programname
 Time of exception.....: $time
 Exception Type.....: $extype
@@ -107,10 +118,13 @@ Additional Information.....: $addinfo
 
     mes = 'Subject: Exception occurred and was caught\n\n' + t.substitute(kwargs) + \
           'Local log status.....:' + '\n\n End exception log'
+    if '-v' in args: print('Message Defined')
     server.sendmail(config['BUGREPORTING']['larloginemail'],
                     config['BUGREPORTING']['lartoemail'], mes)
+    if '-v' in args: print('Message Sent')
     server.quit()
-    print('Email Log Successful')
+    if '-v' in args: print('Server Connection Broken')
+    if '-v' in args: print('Email Log Successful')
 
 
 def text_log(**kwargs):
@@ -122,10 +136,12 @@ def text_log(**kwargs):
     See kwargs: in email() for kwargs docs
     :return:
     """
+    if '-v' in args: print('Text Log Started')
     config = configparser.ConfigParser().read('config.ini')
     account_sid = config['BUGREPORTING']['twilioaccssid']
     auth_token = config['BUGREPORTING']['twilioauthtoken']
     client = Client(account_sid, auth_token)
+    if '-v' in args: print('Client Defined')
 
     t = Template('\n' + """
 
@@ -137,12 +153,13 @@ Time..: $time
 
 Exception Type..: $extype
 """)
+    if '-v' in args: print('Message Defined')
     mess = t.substitute(kwargs)
     client.messages.create(
         to=config['BUGREPORTING']['twiliorecievenum'],
         from_=config['BUGREPORTING']['twiliosendnum'],
         body=mess)
-    print('Text Log Successful')
+    if '-v' in args: print('Text Log Successful')
 
 
 def local_log(**kwargs):
@@ -156,10 +173,10 @@ def local_log(**kwargs):
     See kwargs: in email() for the rest of them
     :return:
     """
-    args = ('exctype', 'statuscode', 'traceback',
+    args_ = ('exctype', 'statuscode', 'traceback',
             'dir', 'values', 'programname',
             'time', 'addinfo')
-    for i in args:
+    for i in args_:
         if i not in kwargs:
             kwargs[i] = None
 
@@ -182,30 +199,40 @@ def scrape():
     stock_site = 'https://www.investing.com/commodities/real-time-futures'
 
     del values_cache[:]
+    if '-v' in args: print('Values Cache Cleared')
     for index in values:
         values_cache.append(index)
+    if '-v' in args: print('Values Cache Updated')
     del values[:]
+    if '-v' in args: print('Values Cleared')
     values.append(entryno_counter)
     value_ = []
 
     try:
         socket.create_connection((socket.gethostbyname('www.google.com'), 80), 2)
-    except:
+    except RuntimeError as e:
+        print(e)
+        if '-v' in args: print('Bad Connection - Waiting')
         time.sleep(900)
+        if '-v' in args: print('Retrying')
         scrape()
     else:
-        pass
+        if '-v' in args: print('Good Connection')
 
     try:
         session = requests.Session()
         adapter = requests.adapters.HTTPAdapter()
         session.mount('https://', adapter)
         session.mount('http://', adapter)
+        if '-v' in args: print('Session Mounted')
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
+        if '-v' in args: print('Page Recieved')
         code = str(page.status_code)
         try:
             assert 200 <= int(code) < 300
         except AssertionError as e:
+            print(e)
+            if '-v' in args: print('Bad Status Code Returned')
             exc_type, exc_value, exc_traceback = sys.exc_info()
             exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
@@ -216,13 +243,8 @@ def scrape():
                       addinfo='Bad status code')
             text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
                      extype='AssertionError')
-            raise AssertionError
         else:
-            os.system('cls')
-            output(code)
-            print(values)
-            print(values_cache)
-
+            if '-v' in args: print('Good Status Code Returned')
             tree = html.fromstring(page.content)
             value = tree.xpath(stock_xpath)[0].text
             for letter in value:
@@ -231,16 +253,21 @@ def scrape():
                 elif letter == '\'' or letter == ',' or letter == '.':
                     pass
             values.append(int(''.join(value_)))
+            if '-v' in args: print('Value Appended')
             csv_write(code)
 
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
+        print(e)
+        if '-v' in args: print('Timeout Exception Raised')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
             email(extype='requests.exceptions.ConnectionError', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache],
                   programname='Machine-Learning/__main__.py')
-        except NameError:
+        except NameError as e:
+            print(e)
+            if '-v' in args: print('NameError raised during Timeout exception catch')
             email(extype='requests.exceptions.ConnectionError', traceback=exc_mes,
                   values=[values, values_cache], programname='Machine-Learning/__main__.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
@@ -252,14 +279,18 @@ def scrape():
         scrape()
         print(exc_mes)
 
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(e)
+        if '-v' in args: print('ConnectionError Exception Raised')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
             email(extype='requests.exceptions.ConnectionError', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache],
                   programname='__main__.py')
-        except NameError:
+        except NameError as e:
+            print(e)
+            if '-v' in args: print('NameError Raised during ConnectionError Handling')
             email(extype='requests.exceptions.ConnectionError',
                   traceback=exc_mes, values=[values, values_cache],
                   programname='__main__.py')
@@ -271,16 +302,18 @@ def scrape():
                  extype='requests.exceptions.ConnectionError')
         time.sleep(900)
         scrape()
-        print(exc_mes)
 
     except requests.exceptions.RequestException as e:
         print(e)
+        if '-v' in args: print('Generic RequestException Raised')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
             email(extype='requests.exceptions.RequestException', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache], programname='__main__.py')
-        except NameError:
+        except NameError as e:
+            print(e)
+            if '-v' in args: print('NameError raised during RequestException Catch')
             email(extype='requests.exceptions.RequestException', traceback=exc_mes,
                   values=[values, values_cache], programname='__main__.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
@@ -288,11 +321,6 @@ def scrape():
                   addinfo='Catchall requests error, see traceback')
         text_log(time=arrow_timestamp(), programname='__main__.py/ COMMODITIES_GOLD.py',
                  extype='requests.exceptions.RequestException')
-
-
-streak = 0
-streak_type = 3
-uod_state = 3
 
 
 def uod():
@@ -306,6 +334,7 @@ def uod():
     global uod_state
     global streak
     try:
+        if '-v' in args: print('uod() Now Running')
         if int(values[1]) > int(values_cache[1]):  # If value went up
             if streak_type != 0:  # If it was previously down or same
                 uod_state = 0  # Set state to up
@@ -330,32 +359,44 @@ def uod():
             if int(values_cache[4]) == 2:
                 streak += 1
             return 2
-    except IndexError:
+    except IndexError as e:
+        print(e)
+        if '-v' in args: print('IndexError Caught During uod() Run')
         try:
             values_cache = [0, 0, 0, 0, 0, 0, 0]
+            if '-v' in args: print('Retrying uod()')
             uod()
-        except RecursionError:
+        except RecursionError as e:
+            print(e)
+            if '-v' in args: print('RecursionError Caught During uod() Retry')
             pass
 
 
 def istrading():
     """ Determines if the script is running within the stock's trading hours"""
     dow = arrow.utcnow().to('US/Pacific').format('dddd')
+    if '-v' in args: print('DOW Defined')
     time_ = arrow.utcnow().to('US/Pacific').format('HHmm')
+    if '-v' in args: print('Time Defined')
     if dow != 'Saturday' and 1500 > time_ > 1415:
+        if '-v' in args: print('Istrading - True')
         return True
     else:
+        if '-v' in args: print('Istrading - False')
         return False
 
 
 def time_period():
     """Gets a custom timestamp"""
-    return arrow.utcnow().to('US/Pacific').format('YYYYMMDDdHHmmss')
+    stamp = arrow.utcnow().to('US/Pacific').format('YYYYMMDDdHHmmss')
+    if '-v' in args: print('Custom Stamp Defined')
+    return stamp
 
 
 def arrow_timestamp():
     """Gets a generic timestamp"""
     stamp = arrow.utcnow().to('US/Pacific').format('YYYY-MM-DD HH:mm:ss')
+    if '-v' in args: print('Generic Stamp Defined')
     return stamp
 
 
@@ -365,16 +406,18 @@ def csv_write(code):
     Gets additional information and writes it to a CSV file
     """
     values.append(arrow_timestamp())
+    if '-v' in args: print('Timestamp Appended')
     values.append(int(time_period()))
+    if '-v' in args: print('Custom Timestamp Appended')
     values.append(uod())
+    if '-v' in args: print('uod Appended')
     values.append(streak)
-    os.system('cls')
-    output(code)
+    if '-v' in args: print('Streak Appended')
     print(values_cache)
     print(values)
     with open(write_file_name, 'a', newline='') as file:
         csv.writer(file).writerow(values)
-    print(' - Written')
+    if '-v' in args: print('Values Written')
 
 
 def csv_init():
@@ -386,6 +429,7 @@ def csv_init():
         csv.writer(file).writerow(csv_headers)
         for list_ in cases:
             csv.writer(file).writerow(list_)
+        if '-v' in args: print('CSV Initialized')
 
 
 def argsinterpret(listchoice):
@@ -400,14 +444,15 @@ def argsinterpret(listchoice):
 
 
 if __name__ == '__main__':
-    output(None)
     config = configparser.ConfigParser().read('config.ini')
-    print(' - Config File Parsed')
-    print(' - CSV File Initiated')
+    if '-v' in args: print('Config File Parsed')
     while True:
         if istrading():
+            if '-v' in args: print('Is Trading')
             scrape()
+            if '-v' in args: print('Loop Successful')
             entryno_counter += 1
         else:
+            if '-v' in args: print('Not Trading')
             time.sleep(300)
             continue
