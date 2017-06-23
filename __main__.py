@@ -22,7 +22,8 @@ from twilio.rest import Client
 import os
 import socket
 
-args = sys.argv[2:]
+args = sys.argv[2:] + ['-v']
+print(args)
 
 csv_headers = ['entryno.', 'value',
                'time', 'DOW', 'timeperiod',
@@ -378,7 +379,7 @@ def istrading():
     if '-v' in args: print('DOW Defined')
     time_ = arrow.utcnow().to('US/Pacific').format('HHmm')
     if '-v' in args: print('Time Defined')
-    if dow != 'Saturday' and 1500 > time_ > 1415:
+    if dow != 'Saturday' and 1500 < int(time_) > 1415:
         if '-v' in args: print('Istrading - True')
         return True
     else:
