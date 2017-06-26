@@ -8,3 +8,7 @@
 ##################
 Ignored/
 Local-Err-Logs/
+
+#System Generated Files#
+########################
+*.DS_Store
