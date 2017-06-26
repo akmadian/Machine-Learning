@@ -28,6 +28,12 @@ print(args)
 csv_headers = ['entryno.', 'value',
                'time', 'DOW', 'timeperiod',
                'OUDstreaktype', 'OUDstreakno.']
+
+RDF_Name = 'RDF_0002.csv'
+RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
+            '/Data-Files/Raw-Data-Files/' + \
+            PRDF_Name
+
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 0
@@ -165,7 +171,7 @@ def local_log(**kwargs):
     try:
         filename = kwargs['fname'] + '.txt'
         with open(filename, 'w') as f:
-            for arg in argslist:
+            for arg in args_:
                 f.write(str(arg) + ' - ' + str(kwargs[arg]) + '\n')
     except Exception as e:
         print(e)
@@ -387,7 +393,7 @@ def arrow_timestamp():
     return stamp
 
 
-def csv_write(code):
+def csv_write():
     """ Writes to a csv file
 
     Gets additional information and writes it to a CSV file
@@ -402,7 +408,7 @@ def csv_write(code):
     if '-v' in args: print('Streak Appended')
     print(values_cache)
     print(values)
-    with open(write_file_name, 'a', newline='') as file:
+    with open(RDF_Path, 'a', newline='') as file:
         csv.writer(file).writerow(values)
     if '-v' in args: print('Values Written')
 
@@ -412,7 +418,7 @@ def csv_init():
     cases = [[None, None, None, None, 0, 2],
              [None, None, None, None, 1, 2],
              [None, None, None, None, 2, 2]]
-    with open(write_file_name, 'w') as file:
+    with open(RDF_Path, 'w') as file:
         csv.writer(file).writerow(csv_headers)
         for list_ in cases:
             csv.writer(file).writerow(list_)
