@@ -1,0 +1,10 @@
+
+#Config Files#
+##############
+*.ini
+
+
+#Ignored Directory#
+##################
+Ignored/
+Local-Err-Logs/

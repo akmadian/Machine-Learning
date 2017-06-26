@@ -12,13 +12,22 @@
 
 import csv
 from datetime import datetime
-import statistics
 from itertools import repeat
 import random as random
+import os
+import sys
 
-RDF_Name = 'RDF_0001.csv'
-PRDF_Name = 'PRDF_0001.csv'
+args = sys.argv[1:]
 
+PRDF_Name = 'PRDF_0002.csv'
+PRDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
+           '/Data-Files/Processed-Data-Files/' + \
+           PRDF_Name
+
+RDF_Name = 'RDF_0010.csv'
+RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
+            '/Data-Files/Raw-Data-Files/' + \
+            PRDF_Name
 
 def probability_list(l1, l2, l3, sno, streak, avstlen=None):
     """Generates a list that simulates the probability of
@@ -61,7 +70,7 @@ def guess(p_list, stopnum):
     incorrect = 0
     line_count = 0
     # print('Stop at: ' + str(stopnum))
-    with open(RDF_Name) as f:
+    with open(RDF_Path) as f:
         reader = csv.reader(f)
         for line in reader:
             # print('Guess line count: ' + str(line_count))
@@ -80,6 +89,12 @@ def guess(p_list, stopnum):
                     # print('stopped')
                     break
         return [correct, incorrect]
+
+
+def csv_init():
+    print(PRDF_Path)
+    with open(PRDF_Path, 'w') as file:
+        file.close()
 
 
 def csv_write(rowsused, accuracy, timeofentcode, num_xslist, lx_streaklist,
@@ -110,8 +125,10 @@ def csv_write(rowsused, accuracy, timeofentcode, num_xslist, lx_streaklist,
     values = [rowsused, accuracy, timeofentcode, num_xslist, lx_streaklist,
               cstreak_list, forevery_list, value, timeofentstamp, looptime,
               problist, guesslist]
-    with open(PRDF_Name, 'a', newline='') as file:
-        csv.writer(file).writerow(values)
+    with open(PRDF_Path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(values)
+    print('Written')
 
 
 def csv_read():
@@ -132,7 +149,8 @@ def csv_read():
 
     starttime = datetime.now()
     row = []
-    with open(RDF_Name) as f:
+    if '-csvinit' in args: csv_init()
+    with open(RDF_Path) as f:
         reader = csv.reader(f)
         for next_row in reader:
             print('-----------------------------------------')
@@ -193,7 +211,7 @@ def csv_read():
 
                     looptime = str(datetime.now() - starttime)[5:]
 
-                    if sum(guess_list) == row_count - 3:
+                    if sum(guess_list) == row_count - 2:
                         csv_write(row_count - 3,
                                   percent_correct,
                                   next_row[3],
@@ -207,7 +225,7 @@ def csv_read():
                                   prob_list,
                                   guess_list)
                     else:
-                        print('didnt add up - 0')
+                       print('didnt add up - 0')
                 else:
                     prob_list = probability_list(for_every_1_1, for_every_1_0, for_every_1_2,
                                                  row[5], row[4], largest_2_streak)
@@ -224,7 +242,7 @@ def csv_read():
                         percent_correct = None
                     looptime = str(datetime.now() - starttime)[5:]
 
-                    if sum(guess_list) == row_count - 3:
+                    if sum(guess_list) == row_count - 2:
                         csv_write(row_count - 3,
                                   percent_correct,
                                   next_row[3],

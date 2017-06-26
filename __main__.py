@@ -22,7 +22,7 @@ from twilio.rest import Client
 import os
 import socket
 
-args = sys.argv[2:] + ['-v']
+args = sys.argv[1:]
 print(args)
 
 csv_headers = ['entryno.', 'value',
@@ -40,24 +40,6 @@ RED = '\033[0;31m'
 streak = 0
 streak_type = 3
 uod_state = 3
-
-
-def output(statuscode):
-    """ Outputs console-like information about the program runtime"""
-    sys.stdout.write('__main__.py' + '\n')
-    # Status
-    print('\r' + 'Status        - [', end='')
-
-    print('\r' + 'Status        - [', end='')
-    sys.stdout.write(GREEN)
-    print('OK', end='')
-    sys.stdout.write(RESET)
-    sys.stdout.write(']' + '\n')
-    print('Time          - [' + str(arrow_timestamp()) + ']') # Time
-    print('Response Code - [' + str(statuscode) + ']')  # Response Code
-    print('Num Of Values - [' + str(entryno_counter) + ']')  # Num of values written
-    print('PID           - [' + str(os.getpid()) + ']')  # Process ID
-    print('\n')
 
 
 def email(**kwargs):
@@ -180,13 +162,15 @@ def local_log(**kwargs):
     for i in args_:
         if i not in kwargs:
             kwargs[i] = None
+    try:
+        filename = kwargs['fname'] + '.txt'
+        with open(filename, 'w') as f:
+            for arg in argslist:
+                f.write(str(arg) + ' - ' + str(kwargs[arg]) + '\n')
+    except Exception as e:
+        print(e)
+        print('Local Log Unsuccessful')
 
-    filename = kwargs['fname'] + '.txt'
-    '''
-    with open(filename, 'w') as f:
-        for arg in argslist:
-            f.write(str(arg) + '.....:' + str(kwargs[arg]))
-            '''
     print('Local Log Successful')
 
 
@@ -229,6 +213,7 @@ def scrape():
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         if '-v' in args: print('Page Recieved')
         code = str(page.status_code)
+
         try:
             assert 200 <= int(code) < 300
         except AssertionError as e:
@@ -244,6 +229,7 @@ def scrape():
                       addinfo='Bad status code')
             text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
                      extype='AssertionError')
+
         else:
             if '-v' in args: print('Good Status Code Returned')
             tree = html.fromstring(page.content)
@@ -422,7 +408,7 @@ def csv_write(code):
 
 
 def csv_init():
-    """ Initializes a csv file with headers"""
+    """ Initializes a csv file with headers and necessary data for PRDF"""
     cases = [[None, None, None, None, 0, 2],
              [None, None, None, None, 1, 2],
              [None, None, None, None, 2, 2]]
@@ -434,10 +420,14 @@ def csv_init():
 
 
 def argsinterpret(listchoice):
+    """Interprets sys.argv data
+
+    :param:
+    listchoice  (str): The users choice of which arg list to return"""
     rawargs = sys.argv
-    addargs = sys.argv[2:]
+    addargs = sys.argv[1:]
     groupedargs = [''.join([thing, next(iter(rawargs))])
-                   if 'test' in thing else None for thing in iter(rawargs)]
+    if 'test' in thing else None for thing in iter(rawargs)]
     return rawargs if listchoice == 'rawargs' \
         else addargs if listchoice == 'addargs' \
         else groupedargs if listchoice == 'groupedargs' \
