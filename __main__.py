@@ -32,7 +32,7 @@ csv_headers = ['entryno.', 'value',
 RDF_Name = 'RDF_0002.csv'
 RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
             '/Data-Files/Raw-Data-Files/' + \
-            PRDF_Name
+            RDF_Name
 
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
@@ -393,7 +393,7 @@ def arrow_timestamp():
     return stamp
 
 
-def csv_write():
+def csv_write(code):
     """ Writes to a csv file
 
     Gets additional information and writes it to a CSV file
@@ -440,16 +440,15 @@ def argsinterpret(listchoice):
         else 'Not a valid option'
 
 
-if __name__ == '__main__':
-    config = configparser.ConfigParser().read('config.ini')
-    if '-v' in args: print('Config File Parsed')
-    while True:
-        if istrading():
-            if '-v' in args: print('Is Trading')
-            scrape()
-            if '-v' in args: print('Loop Successful')
-            entryno_counter += 1
-        else:
-            if '-v' in args: print('Not Trading')
-            time.sleep(300)
-            continue
+config = configparser.ConfigParser().read('config.ini')
+if '-v' in args: print('Config File Parsed')
+while True:
+    if True:
+        if '-v' in args: print('Is Trading')
+        scrape()
+        if '-v' in args: print('Loop Successful')
+        entryno_counter += 1
+    else:
+        if '-v' in args: print('Not Trading')
+        time.sleep(300)
+        continue
