@@ -440,16 +440,15 @@ def argsinterpret(listchoice):
         else 'Not a valid option'
 
 
-if __name__ == '__main__':
-    config = configparser.ConfigParser().read('config.ini')
-    if '-v' in args: print('Config File Parsed')
-    while True:
-        if True:
-            if '-v' in args: print('Is Trading')
-            scrape()
-            if '-v' in args: print('Loop Successful')
-            entryno_counter += 1
-        else:
-            if '-v' in args: print('Not Trading')
-            time.sleep(300)
-            continue
+config = configparser.ConfigParser().read('config.ini')
+if '-v' in args: print('Config File Parsed')
+while True:
+    if True:
+        if '-v' in args: print('Is Trading')
+        scrape()
+        if '-v' in args: print('Loop Successful')
+        entryno_counter += 1
+    else:
+        if '-v' in args: print('Not Trading')
+        time.sleep(300)
+        continue
