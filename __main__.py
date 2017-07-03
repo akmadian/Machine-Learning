@@ -25,11 +25,14 @@ import socket
 args = sys.argv[1:]
 print(args)
 
+config = configparser.ConfigParser().read('config.ini')
+
 csv_headers = ['entryno.', 'value',
                'time', 'DOW', 'timeperiod',
-               'OUDstreaktype', 'OUDstreakno.']
+               'OUDstreaktype', 'OUDstreakno.',
+               'looptime']
 
-RDF_Name = 'RDF_0002.csv'
+RDF_Name = 'RDF_0003.csv'
 RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
             '/Data-Files/Raw-Data-Files/' + \
             RDF_Name
@@ -37,7 +40,6 @@ RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 0
-write_file_name = 'RDF_0001.csv'
 
 GREEN = '\033[0;32m'
 RESET = '\033[0;0m'
@@ -126,7 +128,6 @@ def text_log(**kwargs):
     :return:
     """
     if '-v' in args: print('Text Log Started')
-    config = configparser.ConfigParser().read('config.ini')
     account_sid = config['BUGREPORTING']['twilioaccssid']
     auth_token = config['BUGREPORTING']['twilioauthtoken']
     client = Client(account_sid, auth_token)
@@ -175,7 +176,7 @@ def local_log(**kwargs):
                 f.write(str(arg) + ' - ' + str(kwargs[arg]) + '\n')
     except Exception as e:
         print(e)
-        print('Local Log Unsuccessful')
+        print('-== Local Log Unsuccessful ==-')
 
     print('Local Log Successful')
 
@@ -201,11 +202,16 @@ def scrape():
 
     try:
         socket.create_connection((socket.gethostbyname('www.google.com'), 80), 2)
-    except RuntimeError as e:
+    except socket.timeout as e:
         print(e)
-        if '-v' in args: print('Bad Connection - Waiting')
+        print('-== Timeout Caught ==-')
         time.sleep(900)
-        if '-v' in args: print('Retrying')
+        scrape()
+
+    except Exception as e:
+        print(e)
+        print('-== Generic Exception Caught ==-')
+        time.sleep(900)
         scrape()
     else:
         if '-v' in args: print('Good Connection')
@@ -224,7 +230,7 @@ def scrape():
             assert 200 <= int(code) < 300
         except AssertionError as e:
             print(e)
-            if '-v' in args: print('Bad Status Code Returned')
+            print('-== Bad Status Code Returned ==-')
             exc_type, exc_value, exc_traceback = sys.exc_info()
             exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
@@ -251,7 +257,7 @@ def scrape():
 
     except requests.exceptions.Timeout as e:
         print(e)
-        if '-v' in args: print('Timeout Exception Raised')
+        print('-== Timeout Exception Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
@@ -260,7 +266,7 @@ def scrape():
                   programname='Machine-Learning/__main__.py')
         except NameError as e:
             print(e)
-            if '-v' in args: print('NameError raised during Timeout exception catch')
+            print('-== NameError raised during Timeout exception catch ==-')
             email(extype='requests.exceptions.ConnectionError', traceback=exc_mes,
                   values=[values, values_cache], programname='Machine-Learning/__main__.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
@@ -274,7 +280,7 @@ def scrape():
 
     except requests.exceptions.ConnectionError as e:
         print(e)
-        if '-v' in args: print('ConnectionError Exception Raised')
+        print('-== ConnectionError Exception Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
@@ -283,7 +289,7 @@ def scrape():
                   programname='__main__.py')
         except NameError as e:
             print(e)
-            if '-v' in args: print('NameError Raised during ConnectionError Handling')
+            print('-== NameError Raised during ConnectionError Handling ==-')
             email(extype='requests.exceptions.ConnectionError',
                   traceback=exc_mes, values=[values, values_cache],
                   programname='__main__.py')
@@ -298,7 +304,7 @@ def scrape():
 
     except requests.exceptions.RequestException as e:
         print(e)
-        if '-v' in args: print('Generic RequestException Raised')
+        print('-== Generic RequestException Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
@@ -306,7 +312,7 @@ def scrape():
                   traceback=exc_mes, values=[values, values_cache], programname='__main__.py')
         except NameError as e:
             print(e)
-            if '-v' in args: print('NameError raised during RequestException Catch')
+            print('NameError raised during RequestException Catch')
             email(extype='requests.exceptions.RequestException', traceback=exc_mes,
                   values=[values, values_cache], programname='__main__.py')
         local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
@@ -354,14 +360,14 @@ def uod():
             return 2
     except IndexError as e:
         print(e)
-        if '-v' in args: print('IndexError Caught During uod() Run')
+        print('-== IndexError Caught During uod() Run ==-')
         try:
             values_cache = [0, 0, 0, 0, 0, 0, 0]
             if '-v' in args: print('Retrying uod()')
             uod()
         except RecursionError as e:
             print(e)
-            if '-v' in args: print('RecursionError Caught During uod() Retry')
+            print('-== RecursionError Caught During uod() Retry ==-')
             pass
 
 
@@ -408,7 +414,11 @@ def csv_write(code):
     if '-v' in args: print('Streak Appended')
     print(values_cache)
     print(values)
+
     with open(RDF_Path, 'a', newline='') as file:
+        looptime = str(time.time() - starttime)[:7]
+        print('Looptime - ' + looptime)
+        values.append(looptime)
         csv.writer(file).writerow(values)
     if '-v' in args: print('Values Written')
 
@@ -440,11 +450,10 @@ def argsinterpret(listchoice):
         else 'Not a valid option'
 
 
-config = configparser.ConfigParser().read('config.ini')
-if '-v' in args: print('Config File Parsed')
 while True:
     if True:
         if '-v' in args: print('Is Trading')
+        starttime = time.time()
         scrape()
         if '-v' in args: print('Loop Successful')
         entryno_counter += 1

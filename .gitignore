@@ -2,6 +2,7 @@
 #Config Files#
 ##############
 *.ini
+.gitignore
 
 
 #Ignored Directory#
@@ -12,3 +13,6 @@ Local-Err-Logs/
 #System Generated Files#
 ########################
 *.DS_Store
+test.py
+testlog.txt
+
