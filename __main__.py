@@ -217,10 +217,6 @@ def scrape():
         if '-v' in args: print('Good Connection')
 
     try:
-        session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter()
-        session.mount('https://', adapter)
-        session.mount('http://', adapter)
         if '-v' in args: print('Session Mounted')
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         if '-v' in args: print('Page Recieved')
@@ -412,14 +408,14 @@ def csv_write(code):
     if '-v' in args: print('uod Appended')
     values.append(streak)
     if '-v' in args: print('Streak Appended')
-    print(values_cache)
-    print(values)
 
     with open(RDF_Path, 'a', newline='') as file:
         looptime = str(time.time() - starttime)[:7]
         print('Looptime - ' + looptime)
         values.append(looptime)
         csv.writer(file).writerow(values)
+        print(values_cache)
+        print(values)
     if '-v' in args: print('Values Written')
 
 
@@ -449,6 +445,11 @@ def argsinterpret(listchoice):
         else groupedargs if listchoice == 'groupedargs' \
         else 'Not a valid option'
 
+
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter()
+session.mount('https://', adapter)
+session.mount('http://', adapter)
 
 while True:
     if True:
