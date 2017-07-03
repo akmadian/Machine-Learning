@@ -217,7 +217,6 @@ def scrape():
         if '-v' in args: print('Good Connection')
 
     try:
-        if '-v' in args: print('Session Mounted')
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         if '-v' in args: print('Page Recieved')
         code = str(page.status_code)
@@ -328,6 +327,7 @@ def uod():
     global streak_type
     global uod_state
     global streak
+    global values
     try:
         if '-v' in args: print('uod() Now Running')
         if int(values[1]) > int(values_cache[1]):  # If value went up
@@ -354,6 +354,13 @@ def uod():
             if int(values_cache[4]) == 2:
                 streak += 1
             return 2
+    except TypeError as e:
+        print(e)
+        print('-== TypeError Caught During uod() Run ==-')
+        # Full Reset Of Values
+        values_cache = [0, 0, 0, 0, 0, 0, 0]
+        values = [0, 0, 0, 0, 0, 0, 0]
+
     except IndexError as e:
         print(e)
         print('-== IndexError Caught During uod() Run ==-')
