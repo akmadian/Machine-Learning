@@ -23,19 +23,22 @@ import os
 import socket
 
 args = sys.argv[1:]
-print(args)
 
-config = configparser.ConfigParser().read('config.ini')
+config = configparser.ConfigParser()
+config.read_file(open('config.ini'))
 
 csv_headers = ['entryno.', 'value',
                'time', 'DOW', 'timeperiod',
                'OUDstreaktype', 'OUDstreakno.',
                'looptime']
 
-RDF_Name = 'RDF_0003.csv'
+RDF_Name = 'RDF_0006.csv'
 RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
             '/Data-Files/Raw-Data-Files/' + \
             RDF_Name
+
+Local_Log_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
+                 '/Local-Err-Logs'
 
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
@@ -76,14 +79,22 @@ def email(**kwargs):
             if '-v' in args: print(str(i) + ' - Not in kwargs')
             kwargs[i] = None
 
+    loginemail  = config['BUGREPORTING']['larloginemail']
+    loginpassw  = config['BUGREPORTING']['larloginpassword']
+    sendtoemail = config['BUGREPORTING']['lartoemail']
+
     server = smtplib.SMTP('smtp.gmail.com', 587)
     if '-v' in args: print('Server Connection Established')
     server.ehlo()
     server.starttls()
     if '-v' in args: print('Ehlo and Starttls Successful')
-    server.login(config['BUGREPORTING']['larloginemail'],
-                 config['BUGREPORTING']['larloginpassword'])
+    try:
+        server.login(loginemail, loginpassw)
+    except TypeError as e:
+        print(e)
+        print('-== TypeError During Email Report Login ==-')
     if '-v' in args: print('Login Successful')
+
     t = Template("""Program name.....: $programname
 Time of exception.....: $time
 Exception Type.....: $extype
@@ -110,12 +121,15 @@ Additional Information.....: $addinfo
     mes = 'Subject: Exception occurred and was caught\n\n' + t.substitute(kwargs) + \
           'Local log status.....:' + '\n\n End exception log'
     if '-v' in args: print('Message Defined')
-    server.sendmail(config['BUGREPORTING']['larloginemail'],
-                    config['BUGREPORTING']['lartoemail'], mes)
+    try:
+        server.sendmail(loginemail, sendtoemail, mes)
+    except TypeError as e:
+        print(e)
+        print('-== TypeError During Email Report Send ==-')
     if '-v' in args: print('Message Sent')
     server.quit()
     if '-v' in args: print('Server Connection Broken')
-    if '-v' in args: print('Email Log Successful')
+    print('Email Log Successful')
 
 
 def text_log(**kwargs):
@@ -149,7 +163,7 @@ Exception Type..: $extype
         to=config['BUGREPORTING']['twiliorecievenum'],
         from_=config['BUGREPORTING']['twiliosendnum'],
         body=mess)
-    if '-v' in args: print('Text Log Successful')
+    print('Text Log Successful')
 
 
 def local_log(**kwargs):
@@ -170,7 +184,7 @@ def local_log(**kwargs):
         if i not in kwargs:
             kwargs[i] = None
     try:
-        filename = kwargs['fname'] + '.txt'
+        filename = Local_Log_Path + kwargs['fname'] + '.txt'
         with open(filename, 'w') as f:
             for arg in args_:
                 f.write(str(arg) + ' - ' + str(kwargs[arg]) + '\n')
@@ -220,12 +234,14 @@ def scrape():
         page = session.get(stock_site, headers={'User-Agent': 'Mozilla/5.0'})
         if '-v' in args: print('Page Recieved')
         code = str(page.status_code)
+        if '-v' in args: print('Response Code - ' + code)
 
         try:
             assert 200 <= int(code) < 300
         except AssertionError as e:
             print(e)
-            print('-== Bad Status Code Returned ==-')
+            print('-== Bad Response Code Returned ==-')
+            print('Status Code - ' + code)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
@@ -238,7 +254,7 @@ def scrape():
                      extype='AssertionError')
 
         else:
-            if '-v' in args: print('Good Status Code Returned')
+            if '-v' in args: print('Good Response Code Returned')
             tree = html.fromstring(page.content)
             value = tree.xpath(stock_xpath)[0].text
             for letter in value:
