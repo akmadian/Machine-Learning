@@ -7,6 +7,13 @@
 
     __main__.py - Part of Machine-Learning Repo
     Repo: github.com/akmadian/Machine-Learning
+
+
+    ----------------
+    UOD States
+    0 - Up
+    1 - Down
+    2 - Same
 """
 from lxml import html
 import requests
@@ -24,6 +31,9 @@ import socket
 
 args = sys.argv[1:]
 
+caught_exceptions = 0
+exceptions = []
+
 config = configparser.ConfigParser()
 config.read_file(open('config.ini'))
 
@@ -37,20 +47,19 @@ RDF_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
             '/Data-Files/Raw-Data-Files/' + \
             RDF_Name
 
-Local_Log_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
-                 '/Local-Err-Logs'
-
 values = [0, 0, 0, 0, 0, 0, 0, 0]
 values_cache = [0, 0, 0, 0, 0, 0, 0, 0]
 entryno_counter = 0
-
-GREEN = '\033[0;32m'
-RESET = '\033[0;0m'
-RED = '\033[0;31m'
-
 streak = 0
 streak_type = 3
 uod_state = 3
+
+
+def add_exception(type_ = None):
+    """Log an exception"""
+    global caught_exceptions
+    caught_exceptions += 1
+    exceptions.append(type_)
 
 
 def email(**kwargs):
@@ -71,9 +80,16 @@ def email(**kwargs):
     :return:
     """
     if '-v' in args: print('Email Log Started')
+
     args_ = ('exctype', 'statuscode', 'traceback',
-            'dir', 'values', 'programname',
-            'time', 'addinfo')
+             'dir', 'values', 'programname',
+             'time', 'addinfo', 'exceptionscaught',
+             'exceptions')
+    kwargs['dir'] = os.path.dirname(os.path.realpath(sys.argv[0]))
+    kwargs['programname'] = sys.argv[0]
+    kwargs['exceptionscaught'] = caught_exceptions
+    kwargs['exceptions'] = exceptions
+
     for i in args_:
         if i not in kwargs:
             if '-v' in args: print(str(i) + ' - Not in kwargs')
@@ -95,7 +111,7 @@ def email(**kwargs):
         print('-== TypeError During Email Report Login ==-')
     if '-v' in args: print('Login Successful')
 
-    t = Template("""Program name.....: $programname
+    t = Template("""Program name.....: __main__.py
 Time of exception.....: $time
 Exception Type.....: $extype
 Callback message.....:
@@ -106,9 +122,17 @@ $traceback
 
 Status code.....: $statuscode
 Directory.....: $dir
-Program name.....: $programname
+Program name.....: __main__,.py
 Values.....:
 $values
+
+
+
+Exceptions Caught.....: $exceptionscaught
+Exceptions.....: $exceptions
+
+
+
 
 
 Additional Information.....: $addinfo
@@ -151,7 +175,7 @@ def text_log(**kwargs):
 
 An exception occurred and was caught
 
-Program name..: $programname
+Program name..: __main__.py
 
 Time..: $time
 
@@ -177,9 +201,20 @@ def local_log(**kwargs):
     See kwargs: in email() for the rest of them
     :return:
     """
-    args_ = ('exctype', 'statuscode', 'traceback',
+    Local_Log_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
+                     '/Local-Err-Logs'
+
+    args_ = ('extype', 'statuscode', 'traceback',
             'dir', 'values', 'programname',
-            'time', 'addinfo')
+            'time', 'addinfo', 'exceptionscaught',
+             'exceptions')
+    kwargs['dir'] = os.path.dirname(os.path.realpath(sys.argv[0]))
+    kwargs['programname'] = sys.argv[0]
+    kwargs['exceptionscaught'] = caught_exceptions
+    kwargs['exceptions'] = exceptions
+    kwargs['values'] = (values, values_cache)
+    kwargs['time'] = arrow_timestamp()
+
     for i in args_:
         if i not in kwargs:
             kwargs[i] = None
@@ -218,12 +253,14 @@ def scrape():
         socket.create_connection((socket.gethostbyname('www.google.com'), 80), 2)
     except socket.timeout as e:
         print(e)
+        add_exception('socket.timeout')
         print('-== Timeout Caught ==-')
         time.sleep(900)
         scrape()
 
     except Exception as e:
         print(e)
+        add_exception('Exception')
         print('-== Generic Exception Caught ==-')
         time.sleep(900)
         scrape()
@@ -240,6 +277,7 @@ def scrape():
             assert 200 <= int(code) < 300
         except AssertionError as e:
             print(e)
+            add_exception('Bad Response Code - ' + code)
             print('-== Bad Response Code Returned ==-')
             print('Status Code - ' + code)
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -247,40 +285,40 @@ def scrape():
             email(extype='AssertionError', statuscode=code, traceback=exc_mes,
                   values=[values, values_cache], programname='Machine-Learning/__main__.py',
                   addinfo='Bad status code.', time=arrow_timestamp())
-            local_log(fname='__main__errlog_run_0004', extype='AssertionError',
-                      statuscode=code, traceback=e, programname='Machine-Learning/__main__.py',
+            local_log(fname='__main__errlog', extype='AssertionError',
+                      statuscode=code, traceback=exc_mes, programname='Machine-Learning/__main__.py',
                       addinfo='Bad status code')
             text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
                      extype='AssertionError')
 
         else:
-            if '-v' in args: print('Good Response Code Returned')
+            if '-v' in args: print('Good Response Code Returned - ' + code)
             tree = html.fromstring(page.content)
             value = tree.xpath(stock_xpath)[0].text
             for letter in value:
-                if letter.isdigit():
-                    value_.append(letter)
-                elif letter == '\'' or letter == ',' or letter == '.':
-                    pass
+                value_.append(letter) if letter.isdigit() else None
             values.append(int(''.join(value_)))
             if '-v' in args: print('Value Appended')
-            csv_write(code)
+            csv_write()
 
     except requests.exceptions.Timeout as e:
         print(e)
+        add_exception('requests.exceptions.Timeout')
         print('-== Timeout Exception Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
+            # noinspection PyUnboundLocalVariable
             email(extype='requests.exceptions.ConnectionError', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache],
                   programname='Machine-Learning/__main__.py')
         except NameError as e:
             print(e)
+            add_exception('NameError')
             print('-== NameError raised during Timeout exception catch ==-')
             email(extype='requests.exceptions.ConnectionError', traceback=exc_mes,
                   values=[values, values_cache], programname='Machine-Learning/__main__.py')
-        local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
+        local_log(fname='__main__errlog', extype='requests.exceptions.ConnectionError',
                   statuscode=code, traceback=exc_mes, programname='Machine-Learning/__main__.py',
                   addinfo='Connection error, see traceback')
         text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
@@ -291,21 +329,24 @@ def scrape():
 
     except requests.exceptions.ConnectionError as e:
         print(e)
+        add_exception('requests.exceptions.ConnectionError')
         print('-== ConnectionError Exception Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
+            # noinspection PyUnboundLocalVariable
             email(extype='requests.exceptions.ConnectionError', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache],
                   programname='__main__.py')
         except NameError as e:
             print(e)
+            add_exception('NameError')
             print('-== NameError Raised during ConnectionError Handling ==-')
             email(extype='requests.exceptions.ConnectionError',
                   traceback=exc_mes, values=[values, values_cache],
                   programname='__main__.py')
 
-        local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.ConnectionError',
+        local_log(fname='__main__errlog', extype='requests.exceptions.ConnectionError',
                   statuscode=code, traceback=exc_mes, programname='__main__.py',
                   addinfo='Connection error, see traceback')
         text_log(time=arrow_timestamp(), programname='__main__.py',
@@ -315,18 +356,21 @@ def scrape():
 
     except requests.exceptions.RequestException as e:
         print(e)
+        add_exception('requests.exceptions.RequestException')
         print('-== Generic RequestException Raised ==-')
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
+            # noinspection PyUnboundLocalVariable
             email(extype='requests.exceptions.RequestException', statuscode=code,
                   traceback=exc_mes, values=[values, values_cache], programname='__main__.py')
         except NameError as e:
             print(e)
+            add_exception('NameError')
             print('NameError raised during RequestException Catch')
             email(extype='requests.exceptions.RequestException', traceback=exc_mes,
                   values=[values, values_cache], programname='__main__.py')
-        local_log(fname='__main__errlog_run_0004', extype='requests.exceptions.RequestException',
+        local_log(fname='__main__errlog', extype='requests.exceptions.RequestException',
                   statuscode=code, traceback=exc_mes, programname='__main__.py',
                   addinfo='Catchall requests error, see traceback')
         text_log(time=arrow_timestamp(), programname='__main__.py/ COMMODITIES_GOLD.py',
@@ -372,6 +416,7 @@ def uod():
             return 2
     except TypeError as e:
         print(e)
+        add_exception('TypeError - uod')
         print('-== TypeError Caught During uod() Run ==-')
         # Full Reset Of Values
         values_cache = [0, 0, 0, 0, 0, 0, 0]
@@ -379,6 +424,7 @@ def uod():
 
     except IndexError as e:
         print(e)
+        add_exception('IndexError - uod')
         print('-== IndexError Caught During uod() Run ==-')
         try:
             values_cache = [0, 0, 0, 0, 0, 0, 0]
@@ -386,6 +432,7 @@ def uod():
             uod()
         except RecursionError as e:
             print(e)
+            add_exception('RecursionError')
             print('-== RecursionError Caught During uod() Retry ==-')
             pass
 
@@ -418,7 +465,7 @@ def arrow_timestamp():
     return stamp
 
 
-def csv_write(code):
+def csv_write():
     """ Writes to a csv file
 
     Gets additional information and writes it to a CSV file
@@ -433,8 +480,11 @@ def csv_write(code):
     if '-v' in args: print('Streak Appended')
 
     with open(RDF_Path, 'a', newline='') as file:
-        looptime = str(time.time() - starttime)[:7]
-        print('Looptime - ' + looptime)
+        looptime = time.time() - starttime[:7]
+        if '-v' in args: print('Looptime - ' + str(looptime))
+        if '-v' in args: print('Lines per second - ' + str(1 / looptime))
+        if '-v' in args: print('Lines per minute - ' + str((1 / looptime) * 60))
+        if '-v' in args: print('lines per hour - ' + str(((1 / looptime) * 60) * 60))
         values.append(looptime)
         csv.writer(file).writerow(values)
         print(values_cache)
@@ -478,6 +528,10 @@ while True:
     if True:
         if '-v' in args: print('Is Trading')
         starttime = time.time()
+        if '-v' in args: print('~^' * int((len(str(values_cache)) / 2)))
+        if '-v' in args and caught_exceptions != 0:
+            print('Caught Exceptions - ' + str(caught_exceptions))
+            print(exceptions)
         scrape()
         if '-v' in args: print('Loop Successful')
         entryno_counter += 1

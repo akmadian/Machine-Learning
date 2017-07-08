@@ -8,6 +8,32 @@
 
     PRDF.py - Part of Machine-Learning Repo
     Repo: github.com/akmadian/Machine-Learning
+
+
+    ----------------
+    RDF Index Reference
+    0 - Entry Number
+    1 - Value
+    2 - Generic Timestamp
+    3 - Custom Timestamp
+    4 - UOD State
+    5 - Streak Length
+    6 - Loop Time
+
+
+    PRDF Index Reference
+    0 - Entry Number - From RDF
+    1 - Accuracy
+    2 - Custom Timestamp - From RDF
+    3 - Number of 0s, 1s, 2s
+    4 - Largest Streaks 0, 1, 2
+    5 - Current Streak Lengths 0, 1, 2
+    6 - Proportional Ratios list
+    7 - Value - From RDF
+    8 - Generic Timestamp - From RDF
+    9 - Loop Time
+    10 - Probability List
+    11 - Guess List [Correct, Incorrect]
 """
 
 import csv
@@ -69,7 +95,7 @@ def guess(p_list, stopnum):
     correct = 0
     incorrect = 0
     line_count = 0
-    # print('Stop at: ' + str(stopnum))
+    print('Stop at: ' + str(stopnum))
     with open(RDF_Path) as f:
         reader = csv.reader(f)
         for line in reader:
@@ -197,7 +223,7 @@ def csv_read():
 
                     prob_list = probability_list(for_every_1_1, for_every_1_0, for_every_1_2,
                                                  row[5], row[4], largest_2_streak)
-                    # print('Row Count: ' + str(row_count))
+                    print('Row Count: ' + str(row_count))
                     print('SStop At: ' + str(row_count - 3))
                     guess_list = guess(prob_list, row_count - 3)
                     print('Sum: ' + str(sum(guess_list)))
@@ -216,22 +242,22 @@ def csv_read():
                         percent_correct = float(str(percent_correct) + '0')
 
                     looptime = str(datetime.now() - starttime)[5:]
-                    #if sum(guess_list) == row_count - 2:
-                    csv_write(row_count - 3,
-                              percent_correct,
-                              next_row[3],
-                              [num_0s, num_1s, num_2s],
-                              [largest_0_streak, largest_1_streak, largest_2_streak],
-                              [streak_0, streak_1, streak_2],
-                              [1, 1, 5],
-                              row[1],
-                              row[2],
-                              looptime,
-                              prob_list,
-                              guess_list)
-                    print(percent_correct)
-                    #else:
-                    #   print('didnt add up - 0')
+                    if sum(guess_list) == row_count - 2:
+                        csv_write(row_count - 3,
+                                  percent_correct,
+                                  next_row[3],
+                                  [num_0s, num_1s, num_2s],
+                                  [largest_0_streak, largest_1_streak, largest_2_streak],
+                                  [streak_0, streak_1, streak_2],
+                                  [1, 1, 5],
+                                  row[1],
+                                  row[2],
+                                  looptime,
+                                  prob_list,
+                                  guess_list)
+                        print(percent_correct)
+                    else:
+                       print('didnt add up - 0')
                 else:
                     prob_list = probability_list(for_every_1_1, for_every_1_0, for_every_1_2,
                                                  row[5], row[4], largest_2_streak)
@@ -255,21 +281,21 @@ def csv_read():
                         percent_correct = float(str(percent_correct) + '0')
 
                     looptime = str(datetime.now() - starttime)[5:]
-                    #if sum(guess_list) == row_count - 2:
-                    csv_write(row_count - 3,
-                              percent_correct,
-                              next_row[3],
-                              [num_0s, num_1s, num_2s],
-                              [largest_0_streak, largest_1_streak, largest_2_streak],
-                              [streak_0, streak_1, streak_2],
-                              [round(for_every_1_1, 2), round(for_every_1_0, 2), round(for_every_1_2, 2)],
-                              row[1],
-                              row[2],
-                              looptime,
-                              prob_list,
-                              guess_list)
-                    #else:
-                    #    print('didnt add up - 1')
+                    if sum(guess_list) == row_count - 2:
+                        csv_write(row_count - 3,
+                                  percent_correct,
+                                  next_row[3],
+                                  [num_0s, num_1s, num_2s],
+                                  [largest_0_streak, largest_1_streak, largest_2_streak],
+                                  [streak_0, streak_1, streak_2],
+                                  [round(for_every_1_1, 2), round(for_every_1_0, 2), round(for_every_1_2, 2)],
+                                  row[1],
+                                  row[2],
+                                  looptime,
+                                  prob_list,
+                                  guess_list)
+                    else:
+                        print('didnt add up - 1')
 
                 del row[:]
                 row = [thing for thing in next_row]
