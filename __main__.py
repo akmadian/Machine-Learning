@@ -15,7 +15,6 @@
     1 - Down
     2 - Same
 """
-from lxml import html
 import requests
 import csv
 import time
@@ -24,10 +23,12 @@ import sys
 import traceback
 import smtplib
 import configparser
-from string import Template
-from twilio.rest import Client
 import os
 import socket
+import textwrap
+from string import Template
+from twilio.rest import Client
+from lxml import html
 
 args = sys.argv[1:]
 
@@ -62,7 +63,7 @@ def add_exception(type_ = None):
     exceptions.append(type_)
 
 
-def email(**kwargs):
+def email_log(**kwargs):
     """ Emails an exception report
 
     Uses information passed in with kwargs to fill out a template and send
@@ -89,6 +90,8 @@ def email(**kwargs):
     kwargs['programname'] = sys.argv[0]
     kwargs['exceptionscaught'] = caught_exceptions
     kwargs['exceptions'] = exceptions
+    kwargs['time'] = generic_timestamp()
+    kwargs['values'] = (values, values_cache)
 
     for i in args_:
         if i not in kwargs:
@@ -111,38 +114,38 @@ def email(**kwargs):
         print('-== TypeError During Email Report Login ==-')
     if '-v' in args: print('Login Successful')
 
-    t = Template("""Program name.....: __main__.py
-Time of exception.....: $time
-Exception Type.....: $extype
-Callback message.....:
-$traceback
+    t = textwrap.dedent(
+    """
+    Program name.....: __main__.py
+    Time of exception.....: $time
+    Exception Type.....: $extype
+    Callback message.....:
+    $traceback
 
 
 
 
-Status code.....: $statuscode
-Directory.....: $dir
-Program name.....: __main__,.py
-Values.....:
-$values
+    Status code.....: $statuscode
+    Directory.....: $dir
+    Program name.....: __main__,.py
+    Values.....:
+    $values
 
 
 
-Exceptions Caught.....: $exceptionscaught
-Exceptions.....: $exceptions
-
-
-
-
-
-Additional Information.....: $addinfo
+    Exceptions Caught.....: $exceptionscaught
+    Exceptions.....: $exceptions
 
 
 
 
-""")
 
-    mes = 'Subject: Exception occurred and was caught\n\n' + t.substitute(kwargs) + \
+    Additional Information.....: $addinfo
+
+    """)
+    print(t)
+
+    mes = 'Subject: Exception occurred and was caught\n\n' + Template(t).substitute(kwargs) + \
           'Local log status.....:' + '\n\n End exception log'
     if '-v' in args: print('Message Defined')
     try:
@@ -162,25 +165,28 @@ def text_log(**kwargs):
     Uses information passed in via kwargs to generate an excpetion/ error report
 
     :param kwargs:
-    See kwargs: in email() for kwargs docs
+    See kwargs: in email_log() for kwargs docs
     :return:
     """
+    kwargs['time'] = generic_timestamp()
+
     if '-v' in args: print('Text Log Started')
     account_sid = config['BUGREPORTING']['twilioaccssid']
     auth_token = config['BUGREPORTING']['twilioauthtoken']
     client = Client(account_sid, auth_token)
     if '-v' in args: print('Client Defined')
 
-    t = Template('\n' + """
+    t = Template(textwrap.dedent(
+    """
 
-An exception occurred and was caught
+    An exception occurred and was caught
 
-Program name..: __main__.py
+    Program name..: __main__.py
 
-Time..: $time
+    Time..: $time
 
-Exception Type..: $extype
-""")
+    Exception Type..: $extype
+    """))
     if '-v' in args: print('Message Defined')
     mess = t.substitute(kwargs)
     client.messages.create(
@@ -193,12 +199,12 @@ Exception Type..: $extype
 def local_log(**kwargs):
     """ Logs an exception/ error report locally
 
-    Longer description is essentially the same as email() and text_log()
+    Longer description is essentially the same as email_log() and text_log()
     but it's a local text file.
 
     :param:
     fname       (str): What the log file should be named, do not include file extension
-    See kwargs: in email() for the rest of them
+    See kwargs: in email_log() for the rest of them
     :return:
     """
     Local_Log_Path = os.path.dirname(os.path.realpath(sys.argv[0])) + \
@@ -213,13 +219,13 @@ def local_log(**kwargs):
     kwargs['exceptionscaught'] = caught_exceptions
     kwargs['exceptions'] = exceptions
     kwargs['values'] = (values, values_cache)
-    kwargs['time'] = arrow_timestamp()
+    kwargs['time'] = generic_timestamp()
 
     for i in args_:
         if i not in kwargs:
             kwargs[i] = None
     try:
-        filename = Local_Log_Path + kwargs['fname'] + '.txt'
+        filename = Local_Log_Path + '__main__errlog_' + str(caught_exceptions) + '.txt'
         with open(filename, 'w') as f:
             for arg in args_:
                 f.write(str(arg) + ' - ' + str(kwargs[arg]) + '\n')
@@ -230,19 +236,20 @@ def local_log(**kwargs):
     print('Local Log Successful')
 
 
+# noinspection PyUnboundLocalVariable
 def scrape():
     """ Scrapes a stock value
 
     Uses requests and lxml to scrape a stock value
-    :return:
     """
+    global values_cache
     stock_xpath = '//*[@id="cross_rate_1"]/tbody/tr[1]/td[4]'
     stock_site = 'https://www.investing.com/commodities/real-time-futures'
 
+    #
     del values_cache[:]
     if '-v' in args: print('Values Cache Cleared')
-    for index in values:
-        values_cache.append(index)
+    values_cache = values
     if '-v' in args: print('Values Cache Updated')
     del values[:]
     if '-v' in args: print('Values Cleared')
@@ -282,14 +289,17 @@ def scrape():
             print('Status Code - ' + code)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            email(extype='AssertionError', statuscode=code, traceback=exc_mes,
-                  values=[values, values_cache], programname='Machine-Learning/__main__.py',
-                  addinfo='Bad status code.', time=arrow_timestamp())
-            local_log(fname='__main__errlog', extype='AssertionError',
-                      statuscode=code, traceback=exc_mes, programname='Machine-Learning/__main__.py',
-                      addinfo='Bad status code')
-            text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
-                     extype='AssertionError')
+            email_log(extype='AssertionError',
+                      statuscode=code,
+                      traceback=exc_mes,
+                      addinfo='Bad status code.')
+            local_log(extype='AssertionError',
+                      statuscode=code,
+                      traceback=exc_mes,
+                      addinfo='Bad response code')
+            text_log(extype='AssertionError')
+            time.sleep(900)
+            scrape()
 
         else:
             if '-v' in args: print('Good Response Code Returned - ' + code)
@@ -309,20 +319,20 @@ def scrape():
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
             # noinspection PyUnboundLocalVariable
-            email(extype='requests.exceptions.ConnectionError', statuscode=code,
-                  traceback=exc_mes, values=[values, values_cache],
-                  programname='Machine-Learning/__main__.py')
+            email_log(extype='requests.exceptions.ConnectionError',
+                      statuscode=code,
+                      traceback=exc_mes)
         except NameError as e:
             print(e)
             add_exception('NameError')
             print('-== NameError raised during Timeout exception catch ==-')
-            email(extype='requests.exceptions.ConnectionError', traceback=exc_mes,
-                  values=[values, values_cache], programname='Machine-Learning/__main__.py')
-        local_log(fname='__main__errlog', extype='requests.exceptions.ConnectionError',
-                  statuscode=code, traceback=exc_mes, programname='Machine-Learning/__main__.py',
+            email_log(extype='requests.exceptions.ConnectionError',
+                      traceback=exc_mes)
+        local_log(extype='requests.exceptions.ConnectionError',
+                  statuscode=code,
+                  traceback=exc_mes,
                   addinfo='Connection error, see traceback')
-        text_log(time=arrow_timestamp(), programname='Machine-Learning/__main__.py',
-                 extype='requests.exceptions.ConnectionError')
+        text_log(extype='requests.exceptions.ConnectionError')
         time.sleep(900)
         scrape()
         print(exc_mes)
@@ -334,23 +344,20 @@ def scrape():
         exc_type, exc_value, exc_traceback = sys.exc_info()
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
-            # noinspection PyUnboundLocalVariable
-            email(extype='requests.exceptions.ConnectionError', statuscode=code,
-                  traceback=exc_mes, values=[values, values_cache],
-                  programname='__main__.py')
+            email_log(extype='requests.exceptions.ConnectionError',
+                      statuscode=code,
+                      traceback=exc_mes)
         except NameError as e:
             print(e)
             add_exception('NameError')
             print('-== NameError Raised during ConnectionError Handling ==-')
-            email(extype='requests.exceptions.ConnectionError',
-                  traceback=exc_mes, values=[values, values_cache],
-                  programname='__main__.py')
-
-        local_log(fname='__main__errlog', extype='requests.exceptions.ConnectionError',
-                  statuscode=code, traceback=exc_mes, programname='__main__.py',
+            email_log(extype='requests.exceptions.ConnectionError',
+                      traceback=exc_mes)
+        local_log(extype='requests.exceptions.ConnectionError',
+                  statuscode=code,
+                  traceback=exc_mes,
                   addinfo='Connection error, see traceback')
-        text_log(time=arrow_timestamp(), programname='__main__.py',
-                 extype='requests.exceptions.ConnectionError')
+        text_log(extype='requests.exceptions.ConnectionError')
         time.sleep(900)
         scrape()
 
@@ -362,19 +369,20 @@ def scrape():
         exc_mes = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
         try:
             # noinspection PyUnboundLocalVariable
-            email(extype='requests.exceptions.RequestException', statuscode=code,
-                  traceback=exc_mes, values=[values, values_cache], programname='__main__.py')
+            email_log(extype='requests.exceptions.RequestException',
+                      statuscode=code,
+                      traceback=exc_mes)
         except NameError as e:
             print(e)
             add_exception('NameError')
             print('NameError raised during RequestException Catch')
-            email(extype='requests.exceptions.RequestException', traceback=exc_mes,
-                  values=[values, values_cache], programname='__main__.py')
-        local_log(fname='__main__errlog', extype='requests.exceptions.RequestException',
-                  statuscode=code, traceback=exc_mes, programname='__main__.py',
+            email_log(extype='requests.exceptions.RequestException',
+                      traceback=exc_mes)
+        local_log(extype='requests.exceptions.RequestException',
+                  statuscode=code,
+                  traceback=exc_mes,
                   addinfo='Catchall requests error, see traceback')
-        text_log(time=arrow_timestamp(), programname='__main__.py/ COMMODITIES_GOLD.py',
-                 extype='requests.exceptions.RequestException')
+        text_log(extype='requests.exceptions.RequestException')
 
 
 def uod():
@@ -451,14 +459,14 @@ def istrading():
         return False
 
 
-def time_period():
+def custom_timestamp():
     """Gets a custom timestamp"""
     stamp = arrow.utcnow().to('US/Pacific').format('YYYYMMDDdHHmmss')
     if '-v' in args: print('Custom Stamp Defined')
     return stamp
 
 
-def arrow_timestamp():
+def generic_timestamp():
     """Gets a generic timestamp"""
     stamp = arrow.utcnow().to('US/Pacific').format('YYYY-MM-DD HH:mm:ss')
     if '-v' in args: print('Generic Stamp Defined')
@@ -470,9 +478,9 @@ def csv_write():
 
     Gets additional information and writes it to a CSV file
     """
-    values.append(arrow_timestamp())
+    values.append(generic_timestamp())
     if '-v' in args: print('Timestamp Appended')
-    values.append(int(time_period()))
+    values.append(int(custom_timestamp()))
     if '-v' in args: print('Custom Timestamp Appended')
     values.append(uod())
     if '-v' in args: print('uod Appended')
@@ -480,14 +488,15 @@ def csv_write():
     if '-v' in args: print('Streak Appended')
 
     with open(RDF_Path, 'a', newline='') as file:
-        looptime = time.time() - starttime[:7]
+        looptime = str(time.time() - starttime)[:7]
         if '-v' in args: print('Looptime - ' + str(looptime))
-        if '-v' in args: print('Lines per second - ' + str(1 / looptime))
-        if '-v' in args: print('Lines per minute - ' + str((1 / looptime) * 60))
-        if '-v' in args: print('lines per hour - ' + str(((1 / looptime) * 60) * 60))
+        if '-v' in args: print('Lines per second - ' + str(1 / float(looptime)))
+        if '-v' in args: print('Lines per minute - ' + str((1 / float(looptime)) * 60))
+        if '-v' in args: print('lines per hour - ' + str(((1 / float(looptime)) * 60) * 60))
+        # noinspection PyTypeChecker
         values.append(looptime)
         csv.writer(file).writerow(values)
-        print(values_cache)
+        if '-v' in args: print(values_cache)
         print(values)
     if '-v' in args: print('Values Written')
 
@@ -504,25 +513,12 @@ def csv_init():
         if '-v' in args: print('CSV Initialized')
 
 
-def argsinterpret(listchoice):
-    """Interprets sys.argv data
-
-    :param:
-    listchoice  (str): The users choice of which arg list to return"""
-    rawargs = sys.argv
-    addargs = sys.argv[1:]
-    groupedargs = [''.join([thing, next(iter(rawargs))])
-    if 'test' in thing else None for thing in iter(rawargs)]
-    return rawargs if listchoice == 'rawargs' \
-        else addargs if listchoice == 'addargs' \
-        else groupedargs if listchoice == 'groupedargs' \
-        else 'Not a valid option'
-
-
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter()
 session.mount('https://', adapter)
 session.mount('http://', adapter)
+
+if '-initfile' in args: csv_init()
 
 while True:
     if True:

@@ -16,3 +16,4 @@ Local-Err-Logs/
 test.py
 testlog.txt
 
+*.txt
