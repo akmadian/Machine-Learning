@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    File Name: __main__.py
+    File Name: RDF.py
     Author: Ari Madian
     Created: May 25, 2017 10:23 AM
     Python Version: 3.6
