@@ -3,7 +3,7 @@ An extention of the Stock Monitor project, meant to predict whether or not the n
 
 This project was completed in 28 days. It has exhibited that the more data is avaliable to the code, the more accurate it is; see the graph below.
 
-[Accuracy over time](https://github.com/akmadian/Machine-Learning/blob/master/Graphs/Accuracy_Lines-Available.png)
+![Accuracy over time](https://github.com/akmadian/Machine-Learning/blob/master/Graphs/Accuracy_Lines-Available.png)
 
 
 
